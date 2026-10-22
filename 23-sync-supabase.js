@@ -83,7 +83,7 @@
   async function http(method, qs, body, headers){
     const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), 20000);
     try{
-      const res = await fetch(API + qs, { method, headers: Object.assign({ apikey: CFG.key, 'Content-Type':'application/json' }, (typeof adminHdr==='function' ? adminHdr() : {}), headers||{}), body: body ? JSON.stringify(body) : undefined, signal: ctl.signal });
+      const res = await fetch(API + qs, { method, headers: Object.assign({ apikey: CFG.key, 'Content-Type':'application/json' }, headers||{}), body: body ? JSON.stringify(body) : undefined, signal: ctl.signal });
       let data = null; const txt = await res.text(); try{ data = txt ? JSON.parse(txt) : null; }catch(e){}
       return { ok: res.ok, status: res.status, data };
     }catch(e){ return { ok:false, status:0, data:null }; }
@@ -352,7 +352,7 @@ function sellerAccKey(l){
   async function fetchAll(){
     const rows = []; let off = 0;
     for(;;){
-      const res = await http('GET', '?select=key,value,updated_at&order=updated_at.asc&limit=100&offset=' + off);
+      const res = await http('GET', '?select=key,value,updated_at&order=updated_at.asc,key.asc&limit=100&offset=' + off);
       if(!res.ok){ failStatus(res); return null; }
       rows.push.apply(rows, res.data || []);
       if(!res.data || res.data.length < 100) break;
@@ -679,75 +679,83 @@ function sellerAccKey(l){
 
   const _writeAcc = writeAccDb;
   writeAccDb = function(db){ _writeAcc.apply(this, arguments); schedule(300); };
-  const _writeLocal = writeLocalAccounts;
-  writeLocalAccounts = function(db){ _writeLocal.apply(this, arguments); schedule(300); };
 
-  const _find = ACCOUNTS_DB.find.bind(ACCOUNTS_DB);
-  ACCOUNTS_DB.find = async function(nickname){
-    const key = (nickname||'').trim().toLowerCase();
-    if(ready){
-      const res = await http('GET', '?select=key,value,updated_at&key=eq.' + encodeURIComponent(q('acc:'+key)));
-      if(res.ok){
-        const row = (res.data||[])[0];
-        if(row && row.value){ let db = readAccDb(); db[key] = row.value; base['acc:'+key] = J(row.value); }
-        else if(base['acc:'+key] !== undefined && base['acc:'+key] !== 'null'){ let db = readAccDb(); delete db[key]; }
-      } else { failStatus(res); }
+  /* ---------- аккаунты: точное чтение и атомарное занятие ника ---------- */
+  const accFilter = key => '?select=key,value&key=eq.' + encodeURIComponent('acc:' + key);   /* без кавычек: eq. сравнивает строку как есть */
+  function whenReady(ms){
+    return new Promise(function(res){
+      if(ready) return res(true);
+      const t0 = Date.now();
+      const iv = setInterval(function(){
+        if(ready){ clearInterval(iv); res(true); }
+        else if(Date.now() - t0 > (ms||10000)){ clearInterval(iv); res(false); }
+      }, 100);
+    });
+  }
+  /* читает аккаунт прямо с сервера. { ok:false } — нет связи; { ok:true, rec:null } — такого ника точно нет */
+  async function fetchAccount(key){
+    key = String(key||'').trim().toLowerCase();
+    const res = await http('GET', accFilter(key));
+    if(!res.ok){ failStatus(res); return { ok:false, rec:null }; }
+    const row = (res.data||[])[0];
+    const rec = (row && isObj(row.value)) ? row.value : null;
+    if(rec){ try{ const db = readAccDb(); db[key] = rec; }catch(e){} base['acc:'+key] = J(rec); }
+    return { ok:true, rec: rec, tomb: !!(row && !rec) };
+  }
+  /* занять ник: 'ok' | 'taken' | 'error'. Запись «только если такой строки ещё нет» делает сервер, гонка двух устройств невозможна */
+  async function claimAccount(key, rec){
+    key = String(key||'').trim().toLowerCase();
+    const k = 'acc:' + key;
+    const ins = await http('POST', '?on_conflict=key', [{ key:k, value:rec }], { Prefer:'resolution=ignore-duplicates,return=representation' });
+    if(!ins.ok){ failStatus(ins); return 'error'; }
+    let won = Array.isArray(ins.data) && ins.data.length > 0;
+    if(!won){
+      const cur = await fetchAccount(key);
+      if(!cur.ok) return 'error';
+      if(cur.rec) return 'taken';
+      /* строка есть, но пустая (аккаунт был удалён) — забираем её условной записью */
+      const up = await http('PATCH', '?key=eq.' + encodeURIComponent(k) + '&value=is.null', { value:rec }, { Prefer:'return=representation' });
+      if(!up.ok){ failStatus(up); return 'error'; }
+      won = Array.isArray(up.data) && up.data.length > 0;
+      if(!won) return 'taken';
     }
-    return _find(nickname);
-  };
-  const _saveAcc = ACCOUNTS_DB.save.bind(ACCOUNTS_DB);
-  ACCOUNTS_DB.save = async function(nickname, password){
-    const key = (nickname||'').trim().toLowerCase();
-    if(ready){
-      /* защита от одновременной регистрации одного ника на двух устройствах */
-      const chk = await http('GET', '?select=key&key=eq.' + encodeURIComponent(q('acc:'+key)));
-      if(chk.ok && (chk.data||[]).length){ throw new Error('nick_taken'); }
-    }
-    const r = await _saveAcc(nickname, password);
-    if(ready){ await flush(); }
-    return r;
-  };
+    try{ const db = readAccDb(); db[key] = rec; writeAccDb(db); }catch(e){}
+    base[k] = J(rec);
+    return 'ok';
+  }
 
-  const _apply = applyLocalUser;
-  applyLocalUser = function(nickname){
+  /* ---------- вход в аккаунт: поднимаем данные с сервера и переключаем state ---------- */
+  const _save2 = _save;
+  window.applyLocalUser = async function(nickname){
     const key = String(nickname||'').trim().toLowerCase();
-    (async function(){
-      try{ await loadAccount(key); }catch(e){}
-      
-      // ПРИНУДИТЕЛЬНО сбрасываем старое состояние
-      state.me = { id:'me', name:nickname, balance:0, rating:0, deals:0, color:'#6C5CE7', ip:'', status:'active', isAdmin:false, verified:false, avgResponseMin:8, reviews:[], transactions:[], frozenFunds:[], photo:null };
-      state.deals = [];
-      state.myListings = [];
-      state.favorites = [];
-      state.notifications = [];
-      state.authed = true;
-      state.accKey = key;
-      /* подтянуть то, что loadAccount скачал с сервера (dealsSwitchTo ниже выйдет раньше из-за accKey/authed) */
-      state.deals = (state.dealsByAcc && state.dealsByAcc[key]) || [];
-      state.me.transactions = (state.txByAcc && state.txByAcc[key]) || [];
-      state.notifications = (state.notifByAcc && state.notifByAcc[key]) || [];
-      
-      _apply(nickname);
-      
-      try{
-        if(state && state.me && ready){
-          const rm = window.__syncRemoteMe;
-          if(isObj(rm)){
-            const keep = { transactions: state.me.transactions, isAdmin: state.me.isAdmin, ip: state.me.ip };
-            state.me = Object.assign({}, state.me, rm, keep, { name: nickname });
-            base['a:'+key+':me'] = J(rm);
-          }
-          if(Array.isArray(window.__syncRemoteMy)){ state.myListings = window.__syncRemoteMy; base['a:'+key+':my'] = J(window.__syncRemoteMy); } else { state.myListings = []; }
-          if(Array.isArray(window.__syncRemoteFav)){ state.favorites = window.__syncRemoteFav; base['a:'+key+':fav'] = J(window.__syncRemoteFav); } else { state.favorites = []; }
-          _save(); schedule(200);
-          if(typeof onRoute === 'function') onRoute();
-        }
-      }catch(e){}
-    })();
+    let acc = null; try{ acc = readAccDb()[key] || null; }catch(e){}
+    if(!acc){ const r = await fetchAccount(key); if(r.ok) acc = r.rec; }
+    if(!acc){ try{ toast('Аккаунт не найден', 'error'); }catch(e){} return false; }
+    if(!(await whenReady(8000))) return false;
+    if(!(await loadAccount(key))) return false;      /* без данных с сервера не входим, чтобы не затереть их пустыми */
+    const name = acc.display || nickname;
+    state.me = { id:'me', name:name, balance:0, rating:0, deals:0, color:'#6C5CE7', ip:acc.ip||'', status:acc.status||'active', isAdmin:false, verified:false, avgResponseMin:8, reviews:[], transactions:[], frozenFunds:[], photo:null };
+    state.deals = (state.dealsByAcc && state.dealsByAcc[key]) || [];
+    state.me.transactions = (state.txByAcc && state.txByAcc[key]) || [];
+    state.notifications = (state.notifByAcc && state.notifByAcc[key]) || [];
+    state.myListings = []; state.favorites = [];
+    state.authed = true; state.accKey = key;
+    const rm = window.__syncRemoteMe;
+    if(isObj(rm)){
+      const keep = { transactions: state.me.transactions, isAdmin: false, ip: state.me.ip };
+      state.me = Object.assign({}, state.me, rm, keep, { name: name });
+      base['a:'+key+':me'] = J(rm);
+    }
+    if(Array.isArray(window.__syncRemoteMy)){ state.myListings = window.__syncRemoteMy; base['a:'+key+':my'] = J(window.__syncRemoteMy); }
+    if(Array.isArray(window.__syncRemoteFav)){ state.favorites = window.__syncRemoteFav; base['a:'+key+':fav'] = J(window.__syncRemoteFav); }
+    try{ _save2(); }catch(e){}
+    schedule(200);
+    try{ if(typeof onRoute === 'function') onRoute(); }catch(e){}
+    return true;
   };
 
   /* ---------- запуск ---------- */
-  window.__SYNC = { flush: forceSync, status: ()=>status, sql: SQL_HELP };
+  window.__SYNC = { flush: forceSync, status: ()=>status, sql: SQL_HELP, whenReady: whenReady, fetchAccount: fetchAccount, claimAccount: claimAccount };
   window.addEventListener('DOMContentLoaded', function(){
     updatePill();
     setInterval(updatePill, 4000);
