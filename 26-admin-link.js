@@ -11,6 +11,14 @@
   const URL_ = SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/admin_links';
   let link = null, linkAcc = '', busy = false;
 
+  /* временная диагностика: до 3 раз показывает, почему пункт не появился */
+  let diagN = 0, diagLast = '';
+  function diag(acc, why){
+    const t = 'Админ-привязка: аккаунт «' + acc + '», ' + why;
+    if(diagN >= 3 || t === diagLast) return;
+    diagN++; diagLast = t;
+    try{ toast(t, 'error'); }catch(e){}
+  }
   async function check(force){
     if(!state || !state.authed || !state.accKey){ link = null; linkAcc = ''; return link; }
     if(busy && !force) return link;
@@ -18,13 +26,16 @@
     try{
       const acc = state.accKey;
       const res = await fetch(URL_ + '?select=acc,role,staff_id&acc=eq.' + encodeURIComponent(acc), { cache:'no-store', headers:{ apikey: SUPABASE_PUBLISHABLE_KEY } });
-      if(!res.ok) return link;                                 /* нет связи: ничего не меняем */
+      if(!res.ok){ diag(acc, 'ответ сервера ' + res.status); return link; }   /* нет связи: ничего не меняем */
       const rows = await res.json();
       const row = Array.isArray(rows) ? rows[0] : null;
       if(state.accKey !== acc) return link;                    /* за время запроса сменили аккаунт */
       const was = !!link;
       link = row && ADMIN_ROLES[row.role] ? row : null;
+      if(!link) diag(acc, row ? ('роль «' + row.role + '» не распознана') : 'в базе нет привязки для этого ника');
       linkAcc = link ? acc : '';
+      /* индикатор «общая база онлайн» виден только привязанному админу */
+      try{ if(link) localStorage.setItem('obmenka_admin_unlocked','1'); else localStorage.removeItem('obmenka_admin_unlocked'); }catch(e){}
       if(link && !was){
         const mr = document.getElementById('modal-root');
         if(mr && mr.innerHTML.indexOf('Выйти из аккаунта') >= 0 && !ADMIN) openModal(settingsSheet());   /* обновить открытые настройки */
