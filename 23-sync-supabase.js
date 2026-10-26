@@ -672,7 +672,7 @@ function sellerAccKey(l){
     return true;
   }
   function freshMe(name, prev){
-    return { id:'me', name:name, balance:0, rating:4.9, deals:27, color:'#6C5CE7', ip:(prev&&prev.ip)||'', status:'active', isAdmin:false, verified:false, avgResponseMin:8, reviews:[], transactions:[], frozenFunds:[], photo:null };
+    return { id:'me', name:name, balance:5000, rating:4.9, deals:27, color:'#6C5CE7', ip:(prev&&prev.ip)||'', status:'active', isAdmin:false, verified:false, avgResponseMin:8, reviews:[], transactions:[], frozenFunds:[], photo:null };
   }
 
   /* ---------- подмена функций сайта ---------- */
