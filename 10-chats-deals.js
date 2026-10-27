@@ -113,6 +113,7 @@ function pageChat(id){
         <div style="font-weight:800;color:var(--accent-2);">${fmtPrice(d.price)}</div>
       </div>
       ${paidControls}
+      ${dealAutoShort(d) ? `<div class="faint" style="font-size:11.5px;margin-top:4px;">${dealAutoShort(d)}</div>` : ''}
     </div>
     <div id="msgScroll" class="chat-msgs">
       ${(function(){
@@ -209,6 +210,7 @@ function dealActionsSheet(id){
         const label = done ? (isSeller?'Передача подтверждена':'Получение подтверждено') : (isSeller?'Я передал товар':'Я получил товар');
         return `<div class="btn ${done?'btn-ghost':'btn-accent2'} btn-block" ${done?'style="opacity:.6;pointer-events:none;"':''} onclick="closeModal(); openModal(dealConfirmSheet('${d.id}'))">${icon('check',15)} ${label}</div>`;
       })() : ''}
+      ${dealAutoShort(d) ? `<div class="faint" style="font-size:12.5px;padding:8px 4px;">${dealAutoShort(d)}</div>` : ''}
       ${(d.status==='paid' || inDisputeWindow(d)) && !ADMIN ? `<div class="btn btn-danger btn-block" onclick="closeModal(); openModal(disputeSheet('${d.id}'))">${icon('lock',15)} Открыть спор</div>` : ''}
       <div class="btn btn-ghost btn-block" onclick="closeModal(); navigate('/chat/support')">${icon('support',15)} Написать в поддержку</div>
     </div>`;
