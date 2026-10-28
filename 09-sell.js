@@ -1,7 +1,65 @@
 function pageSell(){
+  const step = sellDraft.step || 1;
+  if(step === 1) return sellStepGame();
+  if(step === 2) return sellStepCategory();
+  /* характеристики заполняются после отрисовки формы (на любом перерисовании страницы) */
+  setTimeout(function(){ if(typeof renderSellSpecs === 'function') renderSellSpecs(); }, 0);
+  return sellStepForm();
+}
+function sellGameName(){
+  const g = GAMES.find(x=>x.id===sellDraft.gameId);
+  return g ? g.name : '';
+}
+function sellStepGame(){
   return `
   ${topbar({title:'Новое объявление', back:true})}
+  <div class="page">
+    <div class="section-title">Шаг 1 из 3: выберите игру</div>
+    ${Object.keys(GAME_TYPES).map(t=>`
+      <div class="faint" style="font-size:12px;margin:12px 0 6px 2px;">${GAME_TYPES[t]}</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${GAMES.filter(g=>gameType(g)===t).map(g=>`<div class="card" style="padding:12px 14px;cursor:pointer;font-weight:700;" onclick="sellPickGame('${g.id}')">${esc(g.name)}</div>`).join('')}
+      </div>`).join('')}
+  </div>`;
+}
+function sellStepCategory(){
+  return `
+  ${topbar({title:'Новое объявление', back:false})}
+  <div class="page">
+    <div class="row between" style="margin-bottom:6px;">
+      <div class="section-title" style="margin:0;">Шаг 2 из 3: категория</div>
+      <button type="button" class="btn btn-ghost" onclick="sellBack()">Назад</button>
+    </div>
+    <div class="faint" style="font-size:12px;margin-bottom:14px;padding-left:2px;">Игра: <b>${esc(sellGameName())}</b></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${CATEGORIES.filter(c=>c!=='Все').map(c=>`<div class="card" style="padding:12px 14px;cursor:pointer;font-weight:700;" onclick="sellPickCat('${c}')">${c}</div>`).join('')}
+    </div>
+  </div>`;
+}
+function sellPickGame(id){
+  sellDraft.gameId = id; sellDraft.category = ''; sellDraft.step = 2;
+  onRoute();
+}
+function sellPickCat(c){
+  sellDraft.category = c; sellDraft.step = 3;
+  onRoute();
+  setTimeout(function(){ if(typeof renderSellSpecs === 'function') renderSellSpecs(); }, 0);
+}
+function sellBack(){
+  const st = sellDraft.step || 1;
+  if(st <= 1) return;
+  sellDraft.step = st - 1;
+  onRoute();
+  if(sellDraft.step === 3) setTimeout(function(){ if(typeof renderSellSpecs === 'function') renderSellSpecs(); }, 0);
+}
+function sellStepForm(){
+  return `
+  ${topbar({title:'Новое объявление', back:false})}
   <form class="page" onsubmit="return submitSellForm(event)">
+    <div class="row between" style="margin-bottom:10px;">
+      <div class="faint" style="font-size:12px;">Шаг 3 из 3: анкета товара</div>
+      <button type="button" class="btn btn-ghost" onclick="sellBack()">Назад</button>
+    </div>
     <div class="section-title">Фото товара <span class="faint" style="font-weight:500;">(от 1 до 10 шт.)</span></div>
     <div class="row gap8" style="margin-bottom:20px;flex-wrap:wrap;" id="sellImages">
       ${sellDraft.images.map((img,i)=>`
@@ -15,16 +73,12 @@ function pageSell(){
         <input type="file" accept="image/*" style="display:none;" onchange="handleImageUpload(event)">
       </label>` : ''}
     </div>
-    <div class="section-title">Игра</div>
-    <select class="select" id="sellGame" style="margin-bottom:16px;" required onchange="renderSellSpecs()">
-      <option value="">Выберите игру</option>
-      ${Object.keys(GAME_TYPES).map(t=>`<optgroup label="${GAME_TYPES[t]}">${GAMES.filter(g=>gameType(g)===t).map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}</optgroup>`).join('')}
-    </select>
-    <div class="section-title">Категория</div>
-    <div class="scroll-x" style="margin-bottom:16px;" id="sellCatChips">
-      ${CATEGORIES.filter(c=>c!=='Все').map((c,i)=>`<div class="chip ${i===0?'active':''}" data-cat="${c}" onclick="selectSellCat(this)">${c}</div>`).join('')}
+    <div class="card" style="padding:12px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+      <div><div style="font-weight:700;">${esc(sellGameName())}</div><div class="faint" style="font-size:12px;margin-top:2px;">${esc(sellDraft.category)}</div></div>
+      <button type="button" class="btn btn-ghost" onclick="sellBack();sellBack();">Изменить</button>
     </div>
-    <input type="hidden" id="sellCategory" value="${CATEGORIES[1]}">
+    <input type="hidden" id="sellGame" value="${sellDraft.gameId || ''}">
+    <input type="hidden" id="sellCategory" value="${sellDraft.category || ''}">
     <div id="sellSpecs"><div class="faint" style="font-size:12px;margin-bottom:16px;padding-left:2px;">Выберите игру, и здесь появятся её характеристики: ранг, уровень, скины и другое. Все поля обязательны.</div></div>
     <div class="section-title">Название</div>
     <input class="input" id="sellTitle" placeholder="Например: Аккаунт CS2 с Prime статусом" maxlength="70" style="margin-bottom:4px;" required>
@@ -177,7 +231,7 @@ async function submitSellForm(e){
   const listing = Object.assign({}, res.listing, { hasSecret: !!(autoDelivery && accountData), accountData: '' });
   state.listings.unshift(listing);
   state.myListings.unshift(listing.id);
-  sellDraft = {images:[], autoDelivery:false, specs:{}};
+  sellDraft = {images:[], autoDelivery:false, specs:{}, step:1, gameId:'', category:''};
   saveState();
   toast('Отправлено на модерацию. Появится в каталоге после проверки администрацией.','success');
   navigate('/profile/listings');
