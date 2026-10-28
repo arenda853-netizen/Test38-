@@ -197,12 +197,27 @@ function sellerAccKey(l){
     if(!ready) return;
     clearTimeout(pushTimer); pushTimer = setTimeout(flush, delay === undefined ? 800 : delay);
   }
+  const ACCOUNT_URL = (CFG.url || '').replace(/\/$/, '') + '/functions/v1/account-state';
   async function flush(){
     if(!ready) return;
     if(pushing){ pushAgain = true; return; }
     pushing = true;
     try{
       const rows = snapshot();
+      /* уведомления, избранное и «мои объявления» уходят отдельным запросом: пишет только сервер */
+      const acct = Object.keys(rows).filter(k=>/^a:[^:]+:(notif|my|fav)$/.test(k));
+      for(const k of acct){
+        const val = rows[k]; delete rows[k];
+        if(J(val) === base[k]) continue;
+        let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
+        if(!tok) continue;
+        const kind = k.split(':')[2];
+        try{
+          const r = await fetch(ACCOUNT_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: CFG.key }, body: JSON.stringify({ action:'set', token: tok, kind: kind, value: val || [] }) });
+          const j = await r.json();
+          if(j && j.ok) base[k] = J(val);
+        }catch(e){}
+      }
       const changed = Object.keys(rows).filter(k=>J(rows[k]) !== base[k]);
       if(!changed.length){ return; }
       /* 1) читаем текущие значения на сервере для склейки */
