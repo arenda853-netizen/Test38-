@@ -108,32 +108,43 @@ window.addEventListener('pagehide', function(){ if(ADMIN) lockRelease(ADMIN.key)
 function adminAccessSheet(){
   return `<div class="h2" style="margin-bottom:6px;">Доступ администратора</div>
   <div class="muted" style="font-size:13px;margin-bottom:12px;line-height:1.5;">Введите свой пароль доступа. Одним паролем одновременно может пользоваться только один сеанс.</div>
-  <input class="input" id="adminPw" type="password" autocomplete="off" placeholder="Пароль" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')adminLogin()">
+  <input class="input" id="adminNick" type="text" autocomplete="off" placeholder="Ваш ник админа" style="margin-bottom:8px;">
+  <input class="input" id="adminPw" type="password" autocomplete="off" placeholder="Ваш пароль админа" style="margin-bottom:14px;" onkeydown="if(event.key==='Enter')adminLogin()">
   <div class="row gap8">
     <button class="btn btn-ghost" style="flex:1;" onclick="closeModal()">Отмена</button>
     <button class="btn btn-primary" style="flex:1;" onclick="adminLogin()">Войти</button>
   </div>`;
 }
-function adminLogin(){
-  const el = document.getElementById('adminPw'); const pw = el ? el.value : '';
-  let f = {n:0, until:0}; try{ f = JSON.parse(localStorage.getItem('obmenka_admin_fail')||'null') || f; }catch(e){}
-  if(Date.now() < f.until){ toast('Слишком много попыток. Подождите '+Math.ceil((f.until-Date.now())/1000)+' с','error'); return; }
+async function adminLogin(){
+  /* пароль админа проверяет сервер (пароль каждого админа свой). В браузере ничего не сохраняется */
+  const nEl = document.getElementById('adminNick'); const el = document.getElementById('adminPw');
+  const nick = (nEl ? nEl.value : '').trim().toLowerCase(); const pw = el ? el.value : '';
+  if(!nick || !pw){ toast('Введите ник и пароль','error'); return; }
+  let res = null;
+  try{
+    const r = await fetch(SUPPORT_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ action:'admin_check', admin_nick: nick, admin_pass: pw }) });
+    res = await r.json();
+  }catch(e){ toast('Нет связи с сервером','error'); return; }
+  if(el) el.value = '';
+  if(!res || !res.ok){
+    if(res && res.error === 'locked') toast('Слишком много попыток. Подождите '+(res.minutes||1)+' мин','error');
+    else if(res && res.error === 'not_allowed') toast('Для этого ника роль не назначена','error');
+    else toast('Неверный ник или пароль','error');
+    return;
+  }
   ensureStaff();
-  const h = hashPw(pw);
-  let role=null, staffId=null, key=null;
-  if(h===MASTER_HASH){ role='owner'; key='owner'; }
-  else { for(const id in state.staff){ if(state.staff[id].hash===h){ role=state.staff[id].role; staffId=id; key='staff_'+id; break; } } }
-  if(!role){
-    f.n++; if(f.n>=5){ f.until = Date.now()+60000; f.n=0; }
-    try{ localStorage.setItem('obmenka_admin_fail', JSON.stringify(f)); }catch(e){}
-    toast('Неверный пароль','error'); return;
+  let staffId = null, key = 'owner';
+  if(res.role !== 'owner'){
+    for(const id in state.staff){ if(state.staff[id].nick === nick){ staffId = id; break; } }
+    if(!staffId){ toast('На этом устройстве доступ не выдан. Владелец выдаст его заново','error'); return; }
+    if(state.staff[staffId].role !== res.role){ toast('Роль на сервере другая. Владелец выдаст доступ заново','error'); return; }
+    key = 'staff_' + staffId;
   }
   if(!lockAcquire(key)){ toast('Этот доступ уже занят другим сеансом','error'); return; }
-  try{ localStorage.removeItem('obmenka_admin_fail'); }catch(e){}
-  ADMIN = {role, staffId, key}; persistAdminSess();
-  try{ const info = {ts:Date.now(), device:deviceLabel(), ip:(state.me&&state.me.ip)||''}; if(role==='owner') state.ownerLast = info; else if(state.staff[staffId]) state.staff[staffId].last = info; }catch(e){}
+  ADMIN = {role: res.role, staffId: staffId, key: key}; persistAdminSess();
+  try{ const info = {ts:Date.now(), device:deviceLabel(), ip:(state.me&&state.me.ip)||''}; if(res.role==='owner') state.ownerLast = info; else if(state.staff[staffId]) state.staff[staffId].last = info; }catch(e){}
   logOp('Вход в админ-режим'); saveState();
-  closeModal(); toast('Вход выполнен: '+ADMIN_ROLES[role].label,'success'); navigate('/admin');
+  closeModal(); toast('Вход выполнен: '+ADMIN_ROLES[res.role].label,'success'); navigate('/admin');
 }
 function exitAdminMode(){
   if(ADMIN){ logOp('Выход из админ-режима'); saveState(); lockRelease(ADMIN.key); }
@@ -217,7 +228,7 @@ async function grantStaff(){
   if(!srv) return;
   ensureStaff();
   for(const k in state.staff){ if(k!==id && state.staff[k].hash===h){ toast('Такой пароль уже выдан другому','error'); return; } }
-  state.staff[id] = {role:staffFormRole, hash:h, ts:Date.now(), by:'owner'};
+  state.staff[id] = {role:staffFormRole, nick:tgt, hash:h, ts:Date.now(), by:'owner'};
   logOp('Выдана роль', id+' → '+ADMIN_ROLES[staffFormRole].label);
   staffFormId=''; staffFormPw='';
   saveState(); toast('Доступ выдан: '+ADMIN_ROLES[staffFormRole].label,'success'); onRoute();
