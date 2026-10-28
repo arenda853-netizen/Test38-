@@ -233,7 +233,7 @@ async function createPaidDeal(listingId, payMethod){
   let deal = null;
   if(!deal){
     const methodLabel = (PAYMENT_METHODS[payMethod]||{}).label || 'выбранный способ';
-    const hasAutoData = l.autoDelivery && l.accountData;
+    const hasAutoData = !!(l.autoDelivery && l.hasSecret);
     deal = {
       id: uid('deal'),
       escrowId: escrowRef,
@@ -250,7 +250,7 @@ async function createPaidDeal(listingId, payMethod){
       reviewed:false,
       peerKey: (l.sellerAcc || (function(){ try{ const a = accUsers().find(u=>u.uid===l.sellerUid); return a ? a.key : ''; }catch(e){ return ''; } })()),
       role: 'buyer',
-      commentsText: hasAutoData ? l.accountData : '',
+      commentsText: '',
       commentsRevealed: !!hasAutoData,
       messages: [
         {from:'sys', text:'Оплата '+fmtPrice(l.price)+' ('+methodLabel+') прошла успешно. Дождитесь подтверждения передачи товара продавцом. После этого проверьте товар и нажмите «Я получил товар».', ts: Date.now()}
@@ -259,6 +259,7 @@ async function createPaidDeal(listingId, payMethod){
     if(hasAutoData) deal.messages.push({from:'sys', text:'Продавец оставил данные в «Комментариях» (кнопка вверху чата). Проверьте их и подтвердите получение.', ts:Date.now()});
     l.sold = true;
     state.deals.unshift(deal);
+    if(hasAutoData && escrowRef && typeof window.revealDealData === 'function') window.revealDealData(deal);
     if(payMethod === 'internal'){
       /* списание и запись в историю делает сервер (serverBuy выше) */
     } else {

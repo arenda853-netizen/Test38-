@@ -226,7 +226,7 @@ function commentsSheet(id){
     <div class="muted" style="font-size:13px;line-height:1.5;">Здесь появятся данные аккаунта или приветствие продавца — сразу после того, как сделка будет оформлена и оплачена.</div>`;
   }
   if(isSeller){
-    const val = (d.commentsText !== undefined ? d.commentsText : (l ? l.accountData : '')) || '';
+    const val = d.commentsText || '';
     return `<div class="h2" style="margin-bottom:4px;">Комментарии для покупателя</div>
     <div class="faint" style="font-size:12px;margin-bottom:12px;line-height:1.4;">Напишите здесь данные аккаунта или приветствие — покупатель увидит это, открыв «Комментарии» в чате.</div>
     <textarea class="textarea" id="commentsTextarea" placeholder="Например: логин и пароль от аккаунта, либо приветственное сообщение...">${val}</textarea>
@@ -290,11 +290,8 @@ function createDealFromChat(id){
   d.sellerConfirmed = false;
   d.buyerConfirmed = false;
   const l = state.listings.find(x=>x.id===d.listingId);
-  const hasAutoData = l && l.autoDelivery && l.accountData;
-  if(hasAutoData){
-    d.commentsText = l.accountData;
-    d.commentsRevealed = true;
-  }
+  const hasAutoData = !!(l && l.autoDelivery && l.hasSecret);
+  if(hasAutoData && typeof window.revealDealData === 'function') window.revealDealData(d);
   d.messages.push({from:'sys', text:'Сделка оформлена. Обе стороны должны подтвердить: продавец — передачу, покупатель — получение.', ts:Date.now()});
   if(hasAutoData) d.messages.push({from:'sys', text:'Продавец оставил данные в «Комментариях» (кнопка вверху чата). Проверьте их и подтвердите получение.', ts:Date.now()});
   saveState();
@@ -373,10 +370,10 @@ function tryCompleteDeal(id){
 
   if(isMyOwnListing){
     if(typeof finalizeListingSale === 'function') finalizeListingSale(d.listingId, d.price, d.listingTitle);
-    d.messages.push({from:'sys', text:'✅ Сделка совершена. Обе стороны подтвердили сделку. Объявление отмечено проданным. Средства будут переведены продавцу через 48 часов, если спор не откроют.', ts:doneTs, local:true, done:true});
+    if(!d.escrowId) d.messages.push({from:'sys', text:'✅ Сделка совершена. Обе стороны подтвердили сделку. Объявление отмечено проданным. Средства будут переведены продавцу через 48 часов, если спор не откроют.', ts:doneTs, local:true, done:true});
     toast('Сделка завершена. Средства будут переведены продавцу через 48 часов','success');
   } else {
-    d.messages.push({from:'sys', text:'✅ Сделка совершена. Обе стороны подтвердили сделку. Средства будут переведены продавцу через 48 часов, если спор не откроют.', ts:doneTs, local:true, done:true});
+    if(!d.escrowId) d.messages.push({from:'sys', text:'✅ Сделка совершена. Обе стороны подтвердили сделку. Средства будут переведены продавцу через 48 часов, если спор не откроют.', ts:doneTs, local:true, done:true});
     toast('Сделка завершена','success');
   }
   

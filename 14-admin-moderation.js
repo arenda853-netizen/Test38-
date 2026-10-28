@@ -132,13 +132,15 @@ function adminRemoveReasonInput(el){
   const ok = (el.value||'').trim().length>=3;
   b.style.opacity = ok ? '1' : '.45'; b.style.pointerEvents = ok ? 'auto' : 'none';
 }
-function adminUnpublishListing(id){
+async function adminUnpublishListing(id){
   if(!can('catalog')) return;
   const l = state.listings.find(x=>x.id===id);
   if(!l) return;
   const el = document.getElementById('adminRemoveReason');
   const reason = ((el&&el.value)||'').trim();
   if(reason.length<3){ toast('Укажите причину','error'); return; }
+  const srv = await adminCall('listing_moderate', { listing: id, decision: 'unpublish', reason: reason });
+  if(!srv) return;
   l.moderation = 'rejected';
   l.removeReason = reason;
   supportNotifySeller(l, 'Ваш товар «'+l.title+'» снят с публикации.\n\nПричина: '+reason);

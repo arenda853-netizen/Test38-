@@ -178,7 +178,28 @@ function genStaffPw(){
   for(let i=0;i<36;i++) r+=ch[a[i]%ch.length];
   staffFormPw=r; onRoute();
 }
-function grantStaff(){
+/* вызов админ-функции на сервере: ник и пароль спрашиваются один раз на вкладку, только в памяти */
+let SRV_ADMIN = null;
+const SRV_ADMIN_ERR = { bad_admin:'Неверный ник или пароль админа', not_allowed:'У этого аккаунта нет права на это действие', locked:'Слишком много попыток, подождите', no_account:'Аккаунт не найден', bad_pass:'Пароль должен быть не короче 30 символов', no_listing:'Объявление не найдено', no_reason:'Укажите причину', server:'Ошибка сервера, попробуйте ещё раз' };
+async function adminCall(action, payload){
+  if(!SRV_ADMIN){
+    const nick = window.prompt('Ваш ник админа:');
+    const pass = nick ? window.prompt('Ваш пароль админа:') : null;
+    if(!nick || !pass){ toast('Действие отменено','error'); return null; }
+    SRV_ADMIN = { nick: nick.trim(), pass: pass };
+  }
+  try{
+    const r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+      body: JSON.stringify(Object.assign({ action: action, admin_nick: SRV_ADMIN.nick, admin_pass: SRV_ADMIN.pass }, payload)) });
+    const res = await r.json();
+    if(res && res.ok) return res;
+    if(res && (res.error === 'bad_admin' || res.error === 'not_allowed' || res.error === 'locked')) SRV_ADMIN = null;
+    toast(SRV_ADMIN_ERR[res && res.error] || ('Ошибка: ' + ((res && res.error) || 'сервер')), 'error');
+    return null;
+  }catch(e){ toast('Нет связи с сервером','error'); return null; }
+}
+window.adminCall = adminCall;
+async function grantStaff(){
   if(!isOwner()){ toast('Выдавать админку может только главный админ','error'); return; }
   const pw = staffFormPw;
   const typed = normId(staffFormId);
@@ -190,6 +211,10 @@ function grantStaff(){
   if(pw.length<30){ toast('Пароль должен быть не короче 30 символов','error'); return; }
   const h = hashPw(pw);
   if(h===MASTER_HASH){ toast('Этот пароль использовать нельзя','error'); return; }
+  /* сначала серверная запись: без неё роль не действует на сервере */
+  const tgt = String(pl.key || pl.name || '').toLowerCase();
+  const srv = await adminCall('admin_grant', { target: tgt, role: staffFormRole, new_pass: pw });
+  if(!srv) return;
   ensureStaff();
   for(const k in state.staff){ if(k!==id && state.staff[k].hash===h){ toast('Такой пароль уже выдан другому','error'); return; } }
   state.staff[id] = {role:staffFormRole, hash:h, ts:Date.now(), by:'owner'};

@@ -131,7 +131,7 @@ function removeSellImage(i){
   sellDraft.images.splice(i,1);
   onRoute();
 }
-function submitSellForm(e){
+async function submitSellForm(e){
   e.preventDefault();
   const gameId = document.getElementById('sellGame').value;
   const title = document.getElementById('sellTitle').value.trim();
@@ -160,34 +160,24 @@ function submitSellForm(e){
   const specs = collectSellSpecs(gameId, category);
   if(!specs) return false;
   const game = GAMES.find(g=>g.id===gameId);
-  let myUid = '';
-  let myAccKey = String((state.me && state.me.name) || '').trim().toLowerCase();
-  try {
-    const db = readAccDb();
-    if (db[myAccKey] && db[myAccKey].uid) myUid = db[myAccKey].uid;
-  } catch(e){}
-
-  if (!myUid) { toast('Ошибка: у аккаунта нет ID. Перезайдите.', 'error'); return false; }
-
-  const listing = {
-    id: uid('lst'), gameId, category, title, specs,
-    description: desc, accountData, autoDelivery, price,
-    sellerId: myUid, views: 0, createdAt: Date.now(),
-    color: game.color, images: sellDraft.images.slice(0, 10),
-    moderation: 'pending',
-    sellerUid: myUid, sellerAcc: myAccKey, 
-    sellerKey: 'u_' + myAccKey, sellerName: (state.me && state.me.name) || ''
-  };
-  state.listings.unshift(listing);
-  // Принудительно отправляем товар на сервер СРАЗУ при создании
-  if (typeof window.__SYNC !== 'undefined' && window.__SYNC.flush) {
-    window.__SYNC.flush().then(() => {
-      console.log('Товар отправлен на сервер с UID:', myUid);
-    }).catch(console.error);
+  let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
+  if(!tok){ toast('Войдите в аккаунт, чтобы опубликовать товар','error'); return false; }
+  const payload = { gameId, category, title, specs, description: desc, price, autoDelivery, images: sellDraft.images.slice(0,10), color: game.color };
+  let res = null;
+  try{
+    const r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+      body: JSON.stringify({ action:'listing_create', token: tok, listing: payload, secret: accountData }) });
+    res = await r.json();
+  }catch(e){ res = null; }
+  if(!res || !res.ok){
+    const SELL_ERR = { bad_title:'Название: от 13 до 70 символов', bad_desc:'Описание: от 13 до 600 символов', bad_price:'Цена: от 1 до 10 000 000 ₽', bad_images:'Фото: от 1 до 10 штук', too_many:'Лимит: не больше 30 объявлений в сутки', no_game:'Выберите игру', bad_specs:'Проверьте характеристики', bad_token:'Войдите в аккаунт заново' };
+    toast(SELL_ERR[res && res.error] || 'Не удалось отправить объявление, попробуйте ещё раз','error');
+    return false;
   }
+  const listing = Object.assign({}, res.listing, { hasSecret: !!(autoDelivery && accountData), accountData: '' });
+  state.listings.unshift(listing);
   state.myListings.unshift(listing.id);
   sellDraft = {images:[], autoDelivery:false, specs:{}};
-  const fee = Math.round(price * SELL_FEE_RATE);
   saveState();
   toast('Отправлено на модерацию. Появится в каталоге после проверки администрацией.','success');
   navigate('/profile/listings');

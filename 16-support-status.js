@@ -207,10 +207,12 @@ function pageAdminPlayers(){
     <div id="admin-list" style="display:flex;flex-direction:column;gap:10px;"></div>
   </div>`;
 }
-function approveListing(id){
+async function approveListing(id){
   if(!can('listings')) return;
   const l = state.listings.find(x=>x.id===id);
   if(!l) return;
+  const srv = await adminCall('listing_moderate', { listing: id, decision: 'approved' });
+  if(!srv) return;
   l.moderation = 'approved';
   logOp('Публикация одобрена', id, 'listings', Object.assign(listingSnap(l), {result:'Одобрено'}));
   saveState();
@@ -268,13 +270,15 @@ function rejInput(prop, val){
   const b = document.getElementById('rejBtn');
   if(b){ const ok = rejDraft.reason.trim().length>=3; b.style.opacity = ok ? '1' : '.45'; b.style.pointerEvents = ok ? 'auto' : 'none'; }
 }
-function rejectListing(){
+async function rejectListing(){
   if(!can('listings')) return;
   const l = state.listings.find(x=>x.id===rejDraft.id);
   if(!l) return;
   const reason = rejDraft.reason.trim();
   if(reason.length<3){ toast('Укажите причину отказа','error'); return; }
   const clause = rejDraft.clause.trim().replace(/^п\.?\s*/i,'');
+  const srv = await adminCall('listing_moderate', { listing: l.id, decision: 'rejected', reason: reason, clause: clause, warn: rejDraft.warn.trim() });
+  if(!srv) return;
   l.moderation = 'rejected';
   l.rejectReason = reason; l.rejectClause = clause; l.rejectWarn = rejDraft.warn.trim();
   supportNotifySeller(l, rejectText(l));

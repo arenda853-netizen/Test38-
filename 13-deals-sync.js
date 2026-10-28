@@ -52,9 +52,10 @@ function deliverPeer(peer, deals){
       let added = 0;
       mirror.messages.forEach(function(m){ if(!have[m.ts + '|' + m.text]){ it.messages.push(m); added++; } });
       if(added){ it.messages.sort(function(x,y){ return (x.ts||0) - (y.ts||0); }); it.unread = (it.unread||0) + added; changed = true; }
-      ['sellerConfirmed','buyerConfirmed'].forEach(function(k){ if(d[k] && !it[k]){ it[k] = true; changed = true; } });
+      /* для сделок с серверной записью статус и подтверждения берёт syncDealStates с сервера, а не из копии собеседника */
+      if(!d.escrowId) ['sellerConfirmed','buyerConfirmed'].forEach(function(k){ if(d[k] && !it[k]){ it[k] = true; changed = true; } });
       const closed = (it.status === 'completed' || it.status === 'cancelled');
-      if(!closed && d.status !== 'completed' && (d.updatedAt||0) >= (it.updatedAt||0)){
+      if(!d.escrowId && !closed && d.status !== 'completed' && (d.updatedAt||0) >= (it.updatedAt||0)){
         ['status','disputeRole','disputeDecision'].forEach(function(k){
           if(d[k] !== undefined && JSON.stringify(it[k]) !== JSON.stringify(d[k])){ it[k] = d[k]; changed = true; }
         });
@@ -86,7 +87,7 @@ function autoCompleteDeals(){
   try{
     (state.deals || []).slice().forEach(function(d){
       if(d && d.status === 'paid' && d.sellerConfirmed && d.buyerConfirmed){ tryCompleteDeal(d.id); return; }
-      if(d && d.status === 'completed' && Array.isArray(d.messages) && !d.messages.some(function(m){ return m.done; })){
+      if(d && !d.escrowId && d.status === 'completed' && Array.isArray(d.messages) && !d.messages.some(function(m){ return m.done; })){
         const last = d.messages.reduce(function(a,m){ return Math.max(a, m.ts||0); }, 0);
         d.messages.push({from:'sys', text:'✅ Сделка совершена. Обе стороны подтвердили сделку.', ts:last+1, local:true, done:true});
         saveState();
@@ -266,6 +267,32 @@ async function loadDealTimer(d){
   }catch(e){}
   finally{ window.__dealTimerBusy[d.escrowId] = false; }
 }
+/* статус и подтверждения сделки с серверной записью — с сервера */
+async function syncDealStates(){
+  if(!window.srvDeal || !state || !state.authed) return;
+  let changedAny = false;
+  const list = (state.deals || []).filter(function(x){ return x && x.escrowId; });
+  if(!list.length) return;
+  const many = await window.srvDeal('deal_state_many', { escrows: list.map(function(x){ return x.escrowId; }) });
+  if(!many || !many.states) return;
+  for(const d of list){
+    const s = many.states[d.escrowId];
+    if(!s) continue;
+    let st = d.status;
+    if(s.disputed) st = 'frozen';
+    else if(s.completed || s.status === 'released') st = 'completed';
+    else if(s.status === 'held') st = 'paid';
+    else if(s.status === 'reversed') st = 'cancelled';
+    const sOk = !!s.seller_ok, bOk = !!s.buyer_ok;
+    if(d.status !== st || !!d.sellerConfirmed !== sOk || !!d.buyerConfirmed !== bOk){
+      d.status = st; d.sellerConfirmed = sOk; d.buyerConfirmed = bOk;
+      d.updatedAt = Date.now();
+      changedAny = true;
+    }
+  }
+  if(changedAny && typeof onRoute === 'function') onRoute();
+}
+setInterval(function(){ try{ syncDealStates(); }catch(e){} }, 8000);
 function dealTimerBanner(d){
   if(!d) return '';
   if(!d.escrowId){
