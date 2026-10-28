@@ -122,6 +122,7 @@
   /* ---------- снимок общих данных из state ---------- */
   function dealMirror(d, me){
   const c = JSON.parse(JSON.stringify(d));
+  delete c.commentsText; delete c.commentsLoaded;
   c.peerKey = me;
   c.role = (d.role === 'buyer') ? 'seller' : 'buyer';
   c.unread = 0;
@@ -407,8 +408,7 @@ function sellerAccKey(l){
   }
   window.markLegacy = markLegacy;
   function msgStripDeals(arr){
-    if(!window.__msgSrv) return arr;
-    return arr.map(function(d){ if(!d || typeof d !== 'object') return d; const c = Object.assign({}, d); delete c.messages; return c; });
+    return arr.map(function(d){ if(!d || typeof d !== 'object') return d; const c = Object.assign({}, d); delete c.commentsText; delete c.commentsLoaded; if(window.__msgSrv) delete c.messages; return c; });
   }
   window.msgStripDeals = msgStripDeals;
   function msgEnable(){

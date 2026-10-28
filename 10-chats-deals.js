@@ -221,6 +221,7 @@ function commentsSheet(id){
   const l = state.listings.find(x=>x.id===d.listingId);
   const isSeller = isSellerOf(d);
   const purchased = d.status==='paid' || d.status==='frozen' || d.status==='completed';
+  if(purchased && d.escrowId && !d.commentsLoaded && typeof loadDealComment === 'function') loadDealComment(d);
   if(!purchased){
     return `<div class="h2" style="margin-bottom:6px;">Комментарии</div>
     <div class="muted" style="font-size:13px;line-height:1.5;">Здесь появятся данные аккаунта или приветствие продавца — сразу после того, как сделка будет оформлена и оплачена.</div>`;
@@ -242,7 +243,28 @@ function commentsSheet(id){
   return `<div class="h2" style="margin-bottom:6px;">Комментарии</div>
   <div class="muted" style="font-size:13px;line-height:1.5;">Продавец пока не оставил данные аккаунта. Дождитесь сообщения от продавца, затем подтвердите получение в чате.</div>`;
 }
-function saveDealComment(id){
+/* комментарии сделки хранит сервер: текст приходит и уходит только через функцию deal-comment */
+const COMMENT_URL = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/deal-comment';
+async function dealCommentCall(action, d, extra){
+  let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
+  if(!tok){ toast('Войдите в аккаунт','error'); return null; }
+  try{
+    const r = await fetch(COMMENT_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+      body: JSON.stringify(Object.assign({ action: action, token: tok, escrow: d.escrowId }, extra || {})) });
+    const res = await r.json();
+    if(res && res.ok) return res;
+    toast(res && res.error === 'not_paid' ? 'Комментарии доступны после оплаты' : 'Не удалось сохранить, попробуйте ещё раз','error');
+    return null;
+  }catch(e){ toast('Нет связи с сервером','error'); return null; }
+}
+function loadDealComment(d){
+  d.commentsLoaded = true;
+  dealCommentCall('comment_get', d).then(function(res){
+    if(res && res.text){ d.commentsText = res.text; d.commentsRevealed = true; }
+    if(typeof onRoute === 'function') onRoute();
+  });
+}
+async function saveDealComment(id){
   const d = state.deals.find(x=>x.id===id);
   const el = document.getElementById('commentsTextarea');
   if(!d || !el) return;
@@ -251,8 +273,10 @@ function saveDealComment(id){
     return;
   }
   const text = el.value.trim();
+  if(d.escrowId){ const okSave = await dealCommentCall('comment_set', d, { text: text }); if(!okSave) return; }
   d.commentsText = text;
   d.commentsRevealed = !!text;
+  d.commentsLoaded = true;
   d.updatedAt = Date.now();
   if(text){
     d.messages.push({from:'sys', text:'Продавец добавил данные в комментарии (кнопка вверху чата).', ts:Date.now()});
