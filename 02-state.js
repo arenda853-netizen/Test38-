@@ -44,7 +44,7 @@ function migrateState(){
     if(l.promoted === undefined) l.promoted = false;
     if(l.promotedUntil === undefined) l.promotedUntil = 0;
     if(l.autoDelivery === undefined) l.autoDelivery = (l.category==='Ключи'||l.category==='Валюта');
-    if(l.accountData === undefined) l.accountData = l.autoDelivery ? 'Логин: demo_'+l.id+'\nПароль: demoPass123' : '';
+    if(l.accountData === undefined) l.accountData = '';
   });
   (state.deals||[]).forEach(d=>{
     delete d.autoConfirmAt;
