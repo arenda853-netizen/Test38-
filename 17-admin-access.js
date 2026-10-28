@@ -181,7 +181,7 @@ function genStaffPw(){
 /* вызов админ-функции на сервере: ник и пароль спрашиваются один раз на вкладку, только в памяти */
 let SRV_ADMIN = null;
 const SRV_ADMIN_ERR = { bad_admin:'Неверный ник или пароль админа', not_allowed:'У этого аккаунта нет права на это действие', locked:'Слишком много попыток, подождите', no_account:'Аккаунт не найден', bad_pass:'Пароль должен быть не короче 30 символов', no_listing:'Объявление не найдено', no_reason:'Укажите причину', server:'Ошибка сервера, попробуйте ещё раз' };
-async function adminCall(action, payload){
+async function adminCall(action, payload, url){
   if(!SRV_ADMIN){
     const nick = window.prompt('Ваш ник админа:');
     const pass = nick ? window.prompt('Ваш пароль админа:') : null;
@@ -189,7 +189,7 @@ async function adminCall(action, payload){
     SRV_ADMIN = { nick: nick.trim(), pass: pass };
   }
   try{
-    const r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+    const r = await fetch(url || AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
       body: JSON.stringify(Object.assign({ action: action, admin_nick: SRV_ADMIN.nick, admin_pass: SRV_ADMIN.pass }, payload)) });
     const res = await r.json();
     if(res && res.ok) return res;

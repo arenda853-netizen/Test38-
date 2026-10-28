@@ -163,7 +163,10 @@ function sellerAccKey(l){
   function snapshot(){
     const rows = {};
     if(!state) return rows;
-    GLOBAL_KEYS.forEach(k=>{ if(state[k] !== undefined) rows['g:'+k] = state[k]; });
+    GLOBAL_KEYS.forEach(k=>{
+      if(k==='support'){ rows['g:support'] = { news: (state.support && state.support.news) || [] }; return; }  /* переписки поддержки теперь на сервере */
+      if(state[k] !== undefined) rows['g:'+k] = state[k];
+    });
     if(Array.isArray(rows['g:sellers'])) rows['g:sellers'] = rows['g:sellers'].filter(x=>x && x.id!=='me');
     /* объявления пишет только сервер: браузер их больше не отправляет */
     (state.reports||[]).forEach(r=>{ if(r && r.id) rows['r:'+r.id] = r; });
