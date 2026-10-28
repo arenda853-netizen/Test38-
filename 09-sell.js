@@ -80,6 +80,8 @@ function sellStepForm(){
     <input type="hidden" id="sellGame" value="${sellDraft.gameId || ''}">
     <input type="hidden" id="sellCategory" value="${sellDraft.category || ''}">
     <div id="sellSpecs"><div class="faint" style="font-size:12px;margin-bottom:16px;padding-left:2px;">Выберите игру, и здесь появятся её характеристики: ранг, уровень, скины и другое. Все поля обязательны.</div></div>
+    <div class="section-title">ID в игре <span class="faint" style="font-weight:500;">(обязательно)</span></div>
+    <input class="input" id="sellGameId" placeholder="Игровой ID, например 123456789" maxlength="40" value="${esc(sellDraft.gameUserId || '')}" oninput="sellDraft.gameUserId=this.value" style="margin-bottom:16px;" required>
     <div class="section-title">Название</div>
     <input class="input" id="sellTitle" placeholder="Например: Аккаунт CS2 с Prime статусом" maxlength="70" style="margin-bottom:4px;" required>
     <div class="faint" style="font-size:11px;margin-bottom:16px;padding-left:2px;">Минимум 13 символов</div>
@@ -213,6 +215,9 @@ async function submitSellForm(e){
   }
   const specs = collectSellSpecs(gameId, category);
   if(!specs) return false;
+  const gameUserId = String(sellDraft.gameUserId || (document.getElementById('sellGameId')||{}).value || '').trim();
+  if(gameUserId.length < 3){ toast('Укажите ID в игре (минимум 3 символа)','error'); const el = document.getElementById('sellGameId'); if(el){ el.style.borderColor = 'var(--danger)'; el.scrollIntoView({block:'center'}); } return false; }
+  specs.push({k:'game_id', label:'ID в игре', value: gameUserId});
   const game = GAMES.find(g=>g.id===gameId);
   let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
   if(!tok){ toast('Войдите в аккаунт, чтобы опубликовать товар','error'); return false; }
@@ -231,7 +236,7 @@ async function submitSellForm(e){
   const listing = Object.assign({}, res.listing, { hasSecret: !!(autoDelivery && accountData), accountData: '' });
   state.listings.unshift(listing);
   state.myListings.unshift(listing.id);
-  sellDraft = {images:[], autoDelivery:false, specs:{}, step:1, gameId:'', category:''};
+  sellDraft = {images:[], autoDelivery:false, specs:{}, step:1, gameId:'', category:'', gameUserId:''};
   saveState();
   toast('Отправлено на модерацию. Появится в каталоге после проверки администрацией.','success');
   navigate('/profile/listings');
