@@ -228,44 +228,18 @@
     if(!d){ closeModal(); return; }
     if(d.reviewed){ closeModal(); toast('Отзыв по этой сделке уже оставлен'); return; }
     const text = ((document.getElementById('reviewText')||{}).value || '').trim();
-    const rv = { author: state.me.name, rating: reviewStarValue, text: text || 'Сделка прошла успешно.', ts: Date.now(), dealId: d.id, title: d.listingTitle || '' };
-    const seller = d.counterparty && state.sellers.find(s=>s.id===d.counterparty.id);
-    if(seller){
-      seller.reviews = seller.reviews || [];
-      seller.reviews.unshift(rv);
-      seller.rating = avg(seller.reviews);
-    } else {
-      let key = String(d.peerKey || '').trim().toLowerCase();
-      if(!key){
-        try{
-          const cid = d.counterparty && d.counterparty.id;
-          const acc = accUsers().find(a=>a.uid===cid || supportKeyByName(a.key)===cid);
-          if(acc) key = acc.key;
-        }catch(e){}
-      }
-      if(key){
-        kvUpdate('a:'+key+':me', function(cur){
-          if(!isO(cur)) cur = {};
-          cur.reviews = Array.isArray(cur.reviews) ? cur.reviews : [];
-          if(cur.reviews.some(r=>r && r.dealId === rv.dealId)) return undefined;
-          cur.reviews.unshift(rv);
-          cur.rating = avg(cur.reviews);
-          return cur;
-        });
-        try{
-          W.__ALL_ME = W.__ALL_ME || {};
-          const m = W.__ALL_ME[key] = Object.assign({}, W.__ALL_ME[key] || {});
-          m.reviews = [rv].concat(Array.isArray(m.reviews) ? m.reviews : []);
-          m.rating = avg(m.reviews);
-        }catch(e){}
-      }
-    }
-    d.reviewed = true;
-    reviewStarValue = 5;
-    saveState();
-    closeModal();
-    toast('Спасибо за отзыв!','success');
-    onRoute();
+    /* отзыв пишет сервер: только покупатель закрытой сделки, один раз */
+    if(!d.escrowId){ closeModal(); toast('Отзыв можно оставить только по сделке с защитой','error'); return; }
+    let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
+    fetch(ACCOUNT_STATE_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ action:'review_add', token: tok, escrow: d.escrowId, rating: reviewStarValue, text: text }) })
+      .then(function(r){ return r.json(); }).then(function(res){
+        if(!res || !res.ok){
+          closeModal();
+          toast(res && res.error==='already' ? 'Отзыв по этой сделке уже оставлен' : (res && res.error==='not_completed' ? 'Отзыв доступен после завершения сделки' : 'Не удалось отправить отзыв'), 'error');
+          return;
+        }
+        d.reviewed = true; reviewStarValue = 5; saveState(); closeModal(); toast('Спасибо за отзыв!','success'); onRoute();
+      }).catch(function(){ closeModal(); toast('Нет связи с сервером','error'); });
   };
 
   /* рейтинг всегда считается по числу и оценкам отзывов */

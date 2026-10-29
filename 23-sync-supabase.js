@@ -166,6 +166,7 @@ function sellerAccKey(l){
     GLOBAL_KEYS.forEach(k=>{
       if(k==='support'){ rows['g:support'] = { news: (state.support && state.support.news) || [] }; return; }  /* переписки поддержки теперь на сервере */
       if(k==='logs') return; /* журнал пишет сервер (admin-data) */
+      if(k==='sellers' || k==='statsHistory') return; /* не отправляется из браузера: локальные данные */
       if(state[k] !== undefined) rows['g:'+k] = state[k];
     });
     if(Array.isArray(rows['g:sellers'])) rows['g:sellers'] = rows['g:sellers'].filter(x=>x && x.id!=='me');
