@@ -7,17 +7,25 @@ function reviewReportSheet(sellerId, idx){
   <div style="display:flex;flex-direction:column;gap:8px;">${REPORT_REASONS.map((r,i)=>`<button class="btn btn-ghost btn-block" onclick="submitReviewReport('${sellerId}',${idx},${i})">${r}</button>`).join('')}</div>
   <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="closeModal()">Отмена</button>`);
 }
+const ACCOUNT_STATE_URL = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/account-state';
+/* жалоба уходит на сервер: сервер проверяет, что отзыв существует, и сам ставит автора жалобы */
+function sendReviewReport(sellerKey, r, reason, sellerName){
+  let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
+  if(!tok){ closeModal(); toast('Войдите в аккаунт, чтобы пожаловаться','error'); return; }
+  fetch(ACCOUNT_STATE_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ action:'report_add', token: tok, seller: sellerKey, ts: r.ts, text: r.text, reason: reason }) })
+    .then(function(x){ return x.json(); }).then(function(res){
+      if(res && res.ok){ closeModal(); toast('Жалоба отправлена','success'); try{ addNotification('Жалоба отправлена', 'Администрация рассмотрит отзыв продавца '+(sellerName||sellerKey), ''); }catch(e){} return; }
+      closeModal();
+      toast(res && res.error==='duplicate' ? 'Вы уже жаловались на этот отзыв' : (res && res.error==='no_review' ? 'Отзыв не найден' : 'Не удалось отправить жалобу'), 'error');
+    }).catch(function(){ closeModal(); toast('Нет связи с сервером','error'); });
+}
 function submitReviewReport(sellerId, idx, reasonIdx){
   const seller = allUsers().find(x=>x.id===sellerId);
   const r = seller && (seller.reviews||[])[idx];
   if(!r){ closeModal(); toast('Отзыв не найден','error'); return; }
-  if(!Array.isArray(state.reports)) state.reports = [];
-  const by = state.accKey || state.me.name;
-  if(state.reports.some(x=>x.by===by && x.sellerId===sellerId && x.reviewTs===r.ts && x.text===r.text)){ closeModal(); toast('Вы уже жаловались на этот отзыв'); return; }
-  state.reports.unshift({id:uid('rep'), type:'review', sellerId, sellerName:seller.name, reviewTs:r.ts, author:r.author, text:r.text, reason:REPORT_REASONS[reasonIdx], by, ts:Date.now(), status:'new'});
-  if(state.reports.length>500) state.reports.length = 500;
-  saveState(); closeModal(); toast('Жалоба отправлена','success');
-  try{ addNotification('Жалоба отправлена', 'Администрация рассмотрит отзыв продавца '+seller.name, ''); }catch(e){}
+  const sk = String(seller.key || '').toLowerCase();
+  if(!sk){ closeModal(); toast('Не удалось определить продавца','error'); return; }
+  sendReviewReport(sk, r, REPORT_REASONS[reasonIdx], seller.name);
 }
 function pageAdminReports(){
   if(!can('disputes')) return adminGuard('Жалобы');

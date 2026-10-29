@@ -360,13 +360,7 @@
     const r = (state.me.reviews||[])[idx];
     if(!r){ closeModal(); toast('Отзыв не найден','error'); return; }
     const reasons = (typeof REPORT_REASONS !== 'undefined') ? REPORT_REASONS : [];
-    if(!Array.isArray(state.reports)) state.reports = [];
-    const by = state.accKey || state.me.name;
-    if(state.reports.some(x=>x.by===by && x.sellerKey===state.accKey && x.reviewTs===r.ts && x.text===r.text)){ closeModal(); toast('Вы уже жаловались на этот отзыв'); return; }
-    state.reports.unshift({ id:uid('rep'), type:'review', sellerId:(supportUidMe()||state.accKey), sellerKey:state.accKey, sellerName:state.me.name, reviewTs:r.ts, author:r.author, text:r.text, reason:reasons[reasonIdx]||'Другое', by:by, ts:Date.now(), status:'new' });
-    if(state.reports.length > 500) state.reports.length = 500;
-    saveState(); closeModal(); toast('Жалоба отправлена','success');
-    try{ addNotification('Жалоба отправлена', 'Администрация рассмотрит отзыв о вас', ''); }catch(e){}
+    sendReviewReport(state.accKey, r, reasons[reasonIdx] || 'Другое', state.me.name);
   };
   /* ---------- доступ к жалобам на отзывы: модератор и выше ---------- */
   ['moderator','junior','admin','senior','owner'].forEach(function(r){
@@ -451,34 +445,19 @@
   W.reportResolve = function(id, remove, again){
     if(!can('reviews')) return;
     const x = (state.reports||[]).find(r=>r.id===id); if(!x) return;
-    if(remove){
-      if(x.sellerKey){
-        kvUpdate('a:'+x.sellerKey+':me', function(cur){
-          if(!isO(cur) || !Array.isArray(cur.reviews)) return undefined;
-          const k = cur.reviews.findIndex(r=>r && r.ts===x.reviewTs && r.text===x.text);
-          if(k < 0) return undefined;
-          if(cur.reviews[k].dealId) x.reviewDealId = cur.reviews[k].dealId;
-          cur.reviews.splice(k,1); cur.rating = avg(cur.reviews);
-          return cur;
-        });
-        try{
-          const m = (W.__ALL_ME||{})[x.sellerKey];
-          if(m && Array.isArray(m.reviews)){
-            const rv = m.reviews.find(r=>r && r.ts===x.reviewTs && r.text===x.text);
-            if(rv && rv.dealId) x.reviewDealId = rv.dealId;
-            m.reviews = m.reviews.filter(r=>!(r && r.ts===x.reviewTs && r.text===x.text)); m.rating = avg(m.reviews);
-          }
-        }catch(e){}
-      } else {
-        const seller = allUsers().find(u=>u.id===x.sellerId);
-        if(seller && Array.isArray(seller.reviews)){ const k = seller.reviews.findIndex(r=>r.ts===x.reviewTs && r.text===x.text); if(k>=0) seller.reviews.splice(k,1); }
-      }
-      if(again){ x.askedAgain = askReReview(x); }
-    }
-    x.status = remove ? 'removed' : 'rejected';
-    try{ logOp(remove ? (again ? 'Отзыв удалён по жалобе, запрошен новый' : 'Отзыв удалён по жалобе') : 'Жалоба на отзыв отклонена', x.sellerId, 'reports', {sellerId:x.sellerId, reason:x.reason, by:x.by, text:String(x.text||'').slice(0,300)}); }catch(e){}
-    saveState();
-    toast(remove ? (again ? (x.askedAgain ? 'Отзыв удалён, покупателю предложено оставить новый' : 'Отзыв удалён (сделку покупателя найти не удалось)') : 'Отзыв удалён') : 'Жалоба отклонена','success');
-    onRoute();
+    if(!ADMIN_CRED){ toast('Войдите в админ-режим, чтобы решить жалобу','error'); return; }
+    fetch(ADMIN_DATA_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+      body: JSON.stringify({ action:'report_resolve', admin_nick: ADMIN_CRED.nick, admin_pass: ADMIN_CRED.pass, report_id: id, remove: !!remove, again: !!again }) })
+      .then(function(r){ return r.json(); }).then(function(res){
+        if(!res || !res.ok){
+          const msg = res && res.error==='already' ? 'Жалоба уже рассмотрена' : (res && res.error==='no_report' ? 'Жалоба не найдена' : (res && res.error==='bad_admin' ? 'Неверный ник или пароль' : 'Не удалось решить жалобу'));
+          toast(msg,'error'); return;
+        }
+        x.status = res.status; x.askedAgain = !!res.askedAgain;
+        logOp(remove ? (again ? 'Отзыв удалён по жалобе, запрошен новый' : 'Отзыв удалён по жалобе') : 'Жалоба на отзыв отклонена', x.sellerId, 'reports', {sellerId:x.sellerId, reason:x.reason, by:x.by, text:String(x.text||'').slice(0,300)});
+        saveState();
+        toast(remove ? (x.askedAgain ? 'Отзыв удалён, покупателю предложено оставить новый' : 'Отзыв удалён') : 'Жалоба отклонена','success');
+        onRoute();
+      }).catch(function(){ toast('Нет связи с сервером','error'); });
   };
 })();

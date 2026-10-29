@@ -170,7 +170,7 @@ function sellerAccKey(l){
     });
     if(Array.isArray(rows['g:sellers'])) rows['g:sellers'] = rows['g:sellers'].filter(x=>x && x.id!=='me');
     /* объявления пишет только сервер: браузер их больше не отправляет */
-    (state.reports||[]).forEach(r=>{ if(r && r.id) rows['r:'+r.id] = r; });
+    /* жалобы пишет сервер (account-state, admin-data); браузер их не отправляет */
     const a = accName();
     if(a){
       rows['a:'+a+':deals'] = msgStripDeals(state.deals || []);
@@ -188,7 +188,7 @@ function sellerAccKey(l){
     Object.keys(base).forEach(k=>{
       if(rows[k] !== undefined) return;
       if(base[k] === 'null') return;
-      if(k.startsWith('r:') || k.startsWith('acc:')) rows[k] = null;
+      if(k.startsWith('acc:')) rows[k] = null;
     });
     return rows;
   }
