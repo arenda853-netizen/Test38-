@@ -219,6 +219,18 @@ function sellerAccKey(l){
           if(j && j.ok) base[k] = J(val);
         }catch(e){}
       }
+      /* каталог и заморозки пишет сервер (admin-data, global_set) и только с входом админа */
+      for(const k of ['g:customGames','g:gameEdits','g:specEdits','g:noHold']){
+        if(!(k in rows)) continue;
+        const val = rows[k]; delete rows[k];
+        if(val === null || J(val) === base[k]) continue;
+        if(typeof ADMIN_CRED === 'undefined' || !ADMIN_CRED) continue;
+        try{
+          const r = await fetch(ADMIN_DATA_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: CFG.key }, body: JSON.stringify({ action:'global_set', admin_nick: ADMIN_CRED.nick, admin_pass: ADMIN_CRED.pass, key: k.slice(2), value: val }) });
+          const j = await r.json();
+          if(j && j.ok) base[k] = J(val);
+        }catch(e){}
+      }
       const changed = Object.keys(rows).filter(k=>J(rows[k]) !== base[k]);
       if(!changed.length){ return; }
       /* 1) читаем текущие значения на сервере для склейки */
