@@ -11,6 +11,8 @@ const ADMIN_ROLES = {
   developer: {label:'Разработчик',   perms:['dev']}
 };
 let ADMIN = null; // {role, staffId, key} — только в памяти вкладки и sessionStorage
+let ADMIN_CRED = null; // ник и пароль админа: только в памяти вкладки, не сохраняются
+const ADMIN_DATA_URL = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/admin-data';
 const ADMIN_SESS_KEY = 'obmenka_admin_sess';
 const SID = (function(){
   try{
@@ -61,6 +63,10 @@ function logOp(action, details, cat, data){
   state.logs.push(e);
   if(state.logs.length>3000) state.logs.splice(0, state.logs.length-3000);
   try{ actMirrorLog(e); }catch(_){}
+  /* запись в общий журнал идёт на сервер: автор и роль ставятся там */
+  if(ADMIN_CRED){
+    try{ fetch(ADMIN_DATA_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ action:'log_add', admin_nick: ADMIN_CRED.nick, admin_pass: ADMIN_CRED.pass, entry: {action: action, details: details||'', cat: cat||'', data: data||null} }) }).catch(function(){}); }catch(e2){}
+  }
 }
 function listingSnap(l){
   const sl = (state.sellers||[]).find(x=>x.id===l.sellerId);
@@ -89,7 +95,7 @@ function adminRestore(){
 }
 function forceExitAdmin(msg){
   if(ADMIN) lockRelease(ADMIN.key);
-  ADMIN = null; persistAdminSess();
+  ADMIN = null; ADMIN_CRED = null; persistAdminSess();
   if(msg) toast(msg,'error');
   if(currentHash().path.startsWith('/admin') || currentHash().path.startsWith('/seller/')) navigate('/profile'); else onRoute();
 }
@@ -142,13 +148,14 @@ async function adminLogin(){
   }
   if(!lockAcquire(key)){ toast('Этот доступ уже занят другим сеансом','error'); return; }
   ADMIN = {role: res.role, staffId: staffId, key: key}; persistAdminSess();
+  ADMIN_CRED = {nick: nick, pass: pw};
   try{ const info = {ts:Date.now(), device:deviceLabel(), ip:(state.me&&state.me.ip)||''}; if(res.role==='owner') state.ownerLast = info; else if(state.staff[staffId]) state.staff[staffId].last = info; }catch(e){}
   logOp('Вход в админ-режим'); saveState();
   closeModal(); toast('Вход выполнен: '+ADMIN_ROLES[res.role].label,'success'); navigate('/admin');
 }
 function exitAdminMode(){
   if(ADMIN){ logOp('Выход из админ-режима'); saveState(); lockRelease(ADMIN.key); }
-  ADMIN = null; persistAdminSess();
+  ADMIN = null; ADMIN_CRED = null; persistAdminSess();
   closeModal(); toast('Режим администратора выключен'); navigate('/profile');
 }
 
