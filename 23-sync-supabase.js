@@ -200,6 +200,30 @@ function sellerAccKey(l){
     clearTimeout(pushTimer); pushTimer = setTimeout(flush, delay === undefined ? 800 : delay);
   }
   const ACCOUNT_URL = (CFG.url || '').replace(/\/$/, '') + '/functions/v1/account-state';
+  /* сделки из базы (escrow): добавляем к локальным, которых ещё нет. Локальные не трогаем */
+  async function mergeServerDeals(){
+    if(!ready || !state || !state.authed) return;
+    let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
+    if(!tok) return;
+    let res = null;
+    try{ const r = await fetch(ACCOUNT_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: CFG.key }, body: JSON.stringify({ action:'deals_list', token: tok }) }); res = await r.json(); }catch(e){ return; }
+    if(!res || !res.ok || !Array.isArray(res.deals)) return;
+    if(!Array.isArray(state.deals)) state.deals = [];
+    let added = 0;
+    res.deals.forEach(function(sd){
+      const dup = state.deals.some(function(d){
+        if(!d) return false;
+        if(d.escrowId && d.escrowId === sd.escrowId) return true;
+        return !d.escrowId && d.listingId === sd.listingId && d.role === sd.role && String(d.peerKey||'') === String(sd.peerKey||'') && d.status !== 'completed' && d.status !== 'cancelled';
+      });
+      if(dup) return;
+      state.deals.unshift(sd); added++;
+    });
+    if(added){ try{ saveState(); }catch(e){} if(typeof refreshUI === 'function') refreshUI(); }
+  }
+  setTimeout(mergeServerDeals, 4000);
+  setInterval(mergeServerDeals, 60000);
+
   async function flush(){
     if(!ready) return;
     if(pushing){ pushAgain = true; return; }
