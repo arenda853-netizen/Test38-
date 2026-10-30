@@ -275,6 +275,9 @@ function sellerAccKey(l){
         out.push({ key:k, value: val });
         sentJson[k] = J(loc);
       });
+      /* свою копию сделок пишет сервер (account-state, deals_set): в общую таблицу её не отправляем */
+      const dealRows = out.filter(r=>/^a:[^:]+:deals$/.test(r.key));
+      const kvRows = out.filter(r=>!/^a:[^:]+:deals$/.test(r.key));
       let batch = [], size = 0;
       const sendBatch = async ()=>{
         if(!batch.length) return true;
@@ -282,12 +285,22 @@ function sellerAccKey(l){
         if(!res.ok){ failStatus(res); return false; }
         batch = []; size = 0; return true;
       };
-      for(const row of out){
+      for(const row of kvRows){
         const sz = J(row).length;
         if(batch.length && (size + sz > 900000 || batch.length >= 25)){ if(!(await sendBatch())) return; }
         batch.push(row); size += sz;
       }
       if(!(await sendBatch())) return;
+      for(const row of dealRows){
+        let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
+        if(!tok) return;
+        let j = null;
+        try{
+          const r = await fetch(ACCOUNT_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: CFG.key }, body: JSON.stringify({ action:'deals_set', token: tok, value: Array.isArray(row.value) ? row.value : [] }) });
+          j = await r.json();
+        }catch(e){ j = null; }
+        if(!j || !j.ok) return;
+      }
       /* 3) запоминаем и подтягиваем результат склейки в локальный state */
       out.forEach(row=>{
         base[row.key] = J(row.value);

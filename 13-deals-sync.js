@@ -37,35 +37,8 @@ function kvQueued(key, fn){
   __kvQueue = __kvQueue.then(function(){ return kvUpdate(key, fn); }).catch(console.error);
   return __kvQueue;
 }
-function deliverPeer(peer, deals){
-  const myKey = state.accKey;
-  return kvQueued('a:' + peer + ':deals', function(arr){
-    arr = Array.isArray(arr) ? arr.filter(function(x){ return x && typeof x === 'object'; }) : [];
-    let changed = false;
-    deals.forEach(function(d){
-      const mirror = dealMirror(d, myKey);
-      mirror.messages = window.__msgSrv ? [] : (mirror.messages || []).filter(function(m){ return !m.local; });
-      const it = arr.find(function(x){ return x.id === d.id; });
-      if(!it){ mirror.unread = 1; arr.unshift(mirror); changed = true; return; }
-      it.messages = Array.isArray(it.messages) ? it.messages : [];
-      const have = {}; it.messages.forEach(function(m){ have[m.ts + '|' + m.text] = 1; });
-      let added = 0;
-      mirror.messages.forEach(function(m){ if(!have[m.ts + '|' + m.text]){ it.messages.push(m); added++; } });
-      if(added){ it.messages.sort(function(x,y){ return (x.ts||0) - (y.ts||0); }); it.unread = (it.unread||0) + added; changed = true; }
-      /* для сделок с серверной записью статус и подтверждения берёт syncDealStates с сервера, а не из копии собеседника */
-      if(!d.escrowId) ['sellerConfirmed','buyerConfirmed'].forEach(function(k){ if(d[k] && !it[k]){ it[k] = true; changed = true; } });
-      const closed = (it.status === 'completed' || it.status === 'cancelled');
-      if(!d.escrowId && !closed && d.status !== 'completed' && (d.updatedAt||0) >= (it.updatedAt||0)){
-        ['status','disputeRole','disputeDecision'].forEach(function(k){
-          if(d[k] !== undefined && JSON.stringify(it[k]) !== JSON.stringify(d[k])){ it[k] = d[k]; changed = true; }
-        });
-      }
-      if(changed && (d.updatedAt||0) > (it.updatedAt||0)) it.updatedAt = d.updatedAt;
-    });
-    return changed ? arr : undefined;
-  });
-}
-let __peerBusy = false, __peerAgain = false;
+/* копии сделок собеседнику теперь строит сервер (account-state, deal_peers) из СВОЕЙ копии отправителя */
+let __peerBusy = false, __peerAgain = false, __peerSig = '', __peerAt = 0;
 function peerSyncDeals(){
   try{
     if(!state || !state.authed || !state.accKey) return;
@@ -77,8 +50,16 @@ function peerSyncDeals(){
     });
     const peers = Object.keys(by);
     if(!peers.length) return;
+    const sig = JSON.stringify(peers.sort().map(function(p){ return [p].concat(by[p].map(function(d){ return [d.id, d.updatedAt||0, d.messages.length, d.status||'']; })); }));
+    /* шлём при изменении и раз в 30 с (на случай, если свою копию ещё не записали): иначе легко упереться в лимит запросов */
+    if(sig === __peerSig && Date.now() - __peerAt < 30000) return;
+    let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
+    if(!tok) return;
     __peerBusy = true;
-    Promise.all(peers.map(function(k){ return deliverPeer(k, by[k]); }))
+    const url = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/account-state';
+    fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ action:'deal_peers', token: tok, peers: peers }) })
+      .then(function(r){ return r.json(); })
+      .then(function(j){ if(j && j.ok){ __peerSig = sig; __peerAt = Date.now(); } })
       .catch(console.error)
       .then(function(){ __peerBusy = false; if(__peerAgain){ __peerAgain = false; setTimeout(peerSyncDeals, 300); } });
   }catch(e){ __peerBusy = false; console.error(e); }
