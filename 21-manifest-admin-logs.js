@@ -36,7 +36,8 @@ const LOG_CATS = [
   {id:'bans',     label:'Баны и заморозки', icon:'shield'},
   {id:'disputes', label:'Споры',            icon:'lock'},
   {id:'access',   label:'Входы и доступ',   icon:'clock'},
-  {id:'views',    label:'Просмотры',        icon:'eye'}
+  {id:'views',    label:'Просмотры',        icon:'eye'},
+  {id:'verify',   label:'Верификация',      icon:'shield'}
 ];
 function logCat(l){
   if(l.cat) return l.cat;
@@ -129,6 +130,8 @@ function logEntryHTML(l, cat){
   } else if(cat==='views'){
     const tu = (()=>{ try{ return accUsers().find(u=>u.uid===d.target||u.key===String(d.target||'').toLowerCase()); }catch(e){ return null; } })();
     body = head(esc(l.action)) + line('Игрок', (d.name||(tu?tu.nickname:''))+(d.target?' (ID: '+d.target+')':''));
+  } else if(cat==='verify'){
+    body = head(esc(l.action)) + line('Игрок', l.details);
   } else {
     const tu = (()=>{ try{ return accUsers().find(u=>u.key===String(l.details||'').toLowerCase()||u.uid===l.details||String(u.nickname||'').toLowerCase()===String(l.details||'').toLowerCase()); }catch(e){ return null; } })();
     body = head(esc(l.action)) + (tu ? line('Игрок', tu.nickname+' (ID: '+tu.uid+')') : line('Подробности', l.details));
