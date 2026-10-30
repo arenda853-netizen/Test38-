@@ -51,7 +51,7 @@ function pseudoSeller(acc, name, uid){
     rating: rm.rating || 0,
     deals: rm.deals || 0,
     reviews: Array.isArray(rm.reviews) ? rm.reviews : [],
-    verified: !!rm.verified,
+    verified: isVerifiedRec(rm),
     avgResponseMin: rm.avgResponseMin || 10,
     status: (acc && acc.status) || rm.status || 'active',
     online: presOnlineKey(key)
@@ -81,7 +81,7 @@ function sellerById(id){
 function sellerBadges(s){
   if(s.status==='banned') return `<span class="badge" style="background:var(--danger-soft);color:var(--danger);">${icon('close',11)} Забанен</span>`;
   if(s.status==='frozen') return `<span class="badge" style="background:var(--warning-soft);color:var(--warning);">${icon('lock',11)} Ограничен</span>`;
-  return `${s.verified?`<span class="badge badge-verified">${icon('shield',11)} Проверен</span>`:''}${s.online?`<span class="badge badge-online">● онлайн</span>`:''}`;
+  return `${s.verified?verifiedMark(14):''}${s.online?`<span class="badge badge-online">● онлайн</span>`:''}`;
 }
 function listingCardHtml(l){
   const seller = sellerOf(l);

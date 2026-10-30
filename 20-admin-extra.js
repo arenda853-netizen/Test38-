@@ -196,3 +196,37 @@ function adminSetVip(id, on){
   toast(on?'VIP статус выдан товару':'VIP статус снят','success');
   onRoute();
 }
+
+/* ---------- галочка «проверен»: только владелец, по ID или нику ---------- */
+function adminDataCall(action, payload){
+  return fetch(ADMIN_DATA_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+    body: JSON.stringify(Object.assign({ action: action, admin_nick: ADMIN_CRED ? ADMIN_CRED.nick : '', admin_pass: ADMIN_CRED ? ADMIN_CRED.pass : '' }, payload)) })
+    .then(function(r){ return r.json(); }).catch(function(){ return { ok:false, error:'network' }; });
+}
+function pageAdminVerify(){
+  if(!isOwner()) return adminGuard('Верификация');
+  return `${topbar({title:'Верификация', back:true, solid:true})}
+  <div class="page">
+    <div class="card" style="padding:14px;">
+      <div class="muted" style="font-size:13px;line-height:1.5;margin-bottom:12px;">Введите ID игрока (например DP123456789) или ник. Галочка действует 6 месяцев. Документы сюда не загружаются.</div>
+      <input class="input" id="verifyTarget" type="text" autocomplete="off" placeholder="ID или ник" style="margin-bottom:10px;">
+      <div class="row gap8">
+        <button class="btn btn-primary" style="flex:1;" onclick="verifyAction(true)">Выдать галочку</button>
+        <button class="btn btn-ghost" style="flex:1;" onclick="verifyAction(false)">Снять</button>
+      </div>
+    </div>
+  </div>`;
+}
+function verifyAction(on){
+  if(!isOwner() || !ADMIN_CRED){ toast('Войдите как владелец','error'); return; }
+  const el = document.getElementById('verifyTarget'); const t = (el ? el.value : '').trim();
+  if(!t){ toast('Введите ID или ник','error'); return; }
+  adminDataCall('verify_set', { target: t, value: !!on }).then(function(res){
+    if(!res || !res.ok){
+      toast(res && res.error==='no_account' ? 'Игрок не найден' : (res && res.error==='bad_admin' ? 'Неверный пароль владельца' : 'Не удалось выполнить'), 'error');
+      return;
+    }
+    if(el) el.value = '';
+    toast(on ? 'Галочка выдана' : 'Галочка снята', 'success');
+  });
+}

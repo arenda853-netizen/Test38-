@@ -134,6 +134,7 @@ function onRoute(){
   else if(path === '/admin/activity' || path.startsWith('/admin/activity/')) html = pageAdminActivity(path.split('/').slice(3).map(decodeURIComponent));
   else if(path === '/admin/vip' || path.startsWith('/admin/vip/')) html = pageAdminVip(path.split('/').slice(3).map(decodeURIComponent));
   else if(path === '/admin/reports') html = pageAdminReports();
+  else if(path === '/admin/verify') html = pageAdminVerify();
   else if(path === '/admin/hold') html = pageAdminHold();
   else if(path === '/admin/restricted') html = pageAdminRestricted();
   else if(path === '/admin/support' || path.startsWith('/admin/support/')) html = pageAdminSupport(path.split('/').slice(3).map(decodeURIComponent));

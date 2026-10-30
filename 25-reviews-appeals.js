@@ -357,6 +357,12 @@
         if(at >= 0) html = html.slice(0, at) + row + html.slice(at);
       }
     }catch(e){ console.error(e); }
+    try{
+      if(isOwner() && html.indexOf("navigate('/admin/verify')") < 0){
+        const pg = html.indexOf('<div class="page"');
+        if(pg >= 0){ const end = html.indexOf('>', pg) + 1; html = html.slice(0,end) + adminMenuRow('shield','Верификация','Выдать или снять галочку по ID',"navigate('/admin/verify')") + html.slice(end); }
+      }
+    }catch(e){ console.error(e); }
     return html;
   };
 

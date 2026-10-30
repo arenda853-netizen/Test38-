@@ -100,7 +100,7 @@ function pageProfile(){
       <div class="row gap12">
         <div class="avatar" style="width:58px;height:58px;font-size:19px;background:${me.photo ? 'transparent' : me.color};overflow:hidden;">${me.photo ? `<img src="${me.photo}" style="width:100%;height:100%;object-fit:cover;">` : initials(me.name)}</div>
         <div style="flex:1;min-width:0;">
-          <div class="row gap8" style="flex-wrap:wrap;"><span class="h2" style="font-size:16px;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${me.name}</span>${me.verified?`<span class="badge badge-verified">${icon('shield',10)} Проверен</span>`:''}</div>
+          <div class="row gap8" style="flex-wrap:wrap;"><span class="h2" style="font-size:16px;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${me.name}</span>${isVerifiedRec(me)?verifiedMark(16):''}</div>
           ${me.email ? `<div class="faint" style="font-size:11px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${me.email}</div>` : ''}
           <div onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(supportUidMe()||me.id)}').catch(()=>{}); toast('ID скопирован','success');" style="display:inline-block;max-width:100%;margin-top:5px;padding:2px 8px;border-radius:7px;background:var(--surface-2);font-size:10.5px;font-family:monospace;color:var(--text-faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;">ID: ${esc(supportUidMe()||me.id)}</div>
           <div class="row gap8" style="margin-top:4px;">${starsHtml(me.rating)} <span class="faint" style="font-size:12px;">· ${me.deals} сделок</span></div>
@@ -248,11 +248,22 @@ async function confirmWithdraw(){
   toast('Заявка на вывод '+fmtPrice(amt)+' отправлена','success');
   onRoute();
 }
-/* значок «Проверен» выставляет только сервер; игрок его не меняет и не запускает проверку с сайта */
+/* галочка выставляется только на сервере и действует 6 месяцев (verifiedUntil) */
+function isVerifiedRec(o){
+  if(!o || !o.verified) return false;
+  return !o.verifiedUntil || Number(o.verifiedUntil) > Date.now();
+}
+/* синяя галочка как у соцсетей; без надписей */
+function verifiedMark(size){
+  const s = size || 16;
+  return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" aria-label="Проверен" role="img" style="vertical-align:middle;flex:none;display:inline-block;"><circle cx="12" cy="12" r="11" fill="#1D9BF0"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+/* строка профиля показывается только если галочка есть */
 function verifyRow(me){
+  if(!isVerifiedRec(me)) return '';
   return `<div class="row between" style="padding:13px 4px;border-bottom:1px solid var(--border-soft);">
     <div class="row gap12"><div class="icon-btn">${icon('shield',16)}</div><span style="font-size:14px;font-weight:600;">Верификация</span></div>
-    <span class="faint" style="font-size:12px;">${me && me.verified ? 'Пройдена' : 'Не пройдена'}</span>
+    <span>${verifiedMark(18)}</span>
   </div>`;
 }
 function profileRow(ic,title,sub,onclick){
