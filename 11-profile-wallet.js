@@ -146,7 +146,7 @@ function pageProfile(){
       ${profileRow('grid','Мои объявления', myListingsCount+' активно', "navigate('/profile/listings')")}
       ${profileRow('chat','Мои сделки', state.deals.length+' всего', "navigate('/chats')")}
       ${profileRow('star','Избранное', state.favorites.length+' товаров', "navigate('/catalog')")}
-      ${profileRow('shield','Верификация', me.verified?'Пройдена':'Не пройдена', me.verified?"toast('Аккаунт уже верифицирован','success')":"openModal(verifySheet())")}
+      ${verifyRow(me)}
       ${profileRow('support','Поддержка', '', "openModal(supportSheet())")}
     </div>
     <div class="faint" style="text-align:center;font-size:10.5px;margin-top:14px;">Сборка ${BUILD_ID}</div>
@@ -248,21 +248,12 @@ async function confirmWithdraw(){
   toast('Заявка на вывод '+fmtPrice(amt)+' отправлена','success');
   onRoute();
 }
-function verifySheet(){
-  return `<div class="h2" style="margin-bottom:6px;">Верификация аккаунта</div>
-  <div class="muted" style="font-size:13px;margin-bottom:14px;line-height:1.5;">
-    Верификация повышает доверие покупателей и даёт значок «Проверен». В демо-режиме загрузка документа имитируется.
-  </div>
-  <div class="upload-tile" style="width:100%;height:80px;margin-bottom:16px;" onclick="toast('Демо: документ загружен')">${icon('image',22)}</div>
-  <button class="btn btn-primary btn-block" onclick="confirmVerify()">Отправить на проверку</button>`;
-}
-function confirmVerify(){
-  closeModal();
-  toast('Документы отправлены на проверку','success');
-  /* верификацию ставит администратор на сервере; браузер её больше не выставляет */
-  setTimeout(()=>{
-    if(currentHash().path==='/profile') onRoute();
-  }, 1800);
+/* значок «Проверен» выставляет только сервер; игрок его не меняет и не запускает проверку с сайта */
+function verifyRow(me){
+  return `<div class="row between" style="padding:13px 4px;border-bottom:1px solid var(--border-soft);">
+    <div class="row gap12"><div class="icon-btn">${icon('shield',16)}</div><span style="font-size:14px;font-weight:600;">Верификация</span></div>
+    <span class="faint" style="font-size:12px;">${me && me.verified ? 'Пройдена' : 'Не пройдена'}</span>
+  </div>`;
 }
 function profileRow(ic,title,sub,onclick){
   return `<div class="row between" style="padding:13px 4px;cursor:pointer;border-bottom:1px solid var(--border-soft);" onclick="${onclick}">
@@ -334,7 +325,7 @@ function settingsSheet(){
   </div>
   <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:18px;">
     ${profileRow('edit','Редактировать профиль','',"closeModal(); navigate('/profile/edit');")}
-    ${profileRow('shield','Верификация', me.verified?'Пройдена':'Не пройдена', me.verified?"toast('Аккаунт уже верифицирован','success')":"closeModal(); openModal(verifySheet());")}
+    ${verifyRow(me)}
     ${profileRow('support','Поддержка', '', "closeModal(); openModal(supportSheet());")}
     ${ADMIN
       ? profileRow('lock','Админ-панель','',"closeModal(); navigate('/admin');") + profileRow('logout','Выйти из режима администратора','',"exitAdminMode();")
