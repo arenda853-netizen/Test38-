@@ -1,13 +1,12 @@
 /* ============================================================
    ПОДОЗРИТЕЛЬНЫЕ АКТИВНОСТИ (админ: владелец и старший админ)
    • Кнопка появляется в админ-панели. Список, история и разморозка — через сервер.
-   • Ник и пароль админа спрашиваются каждый раз и нигде не сохраняются.
+   • Секретное слово не спрашивается: используется вход в админ-панель (ADMIN_CRED), только в памяти вкладки.
    Подключается последним, после 27-admin-credit.js.
    ============================================================ */
 (function(){
   'use strict';
   const W = window;
-  let adm = null;   /* { nick, pass } — только на время открытого окна */
 
   function esc(v){
     return String(v == null ? '' : v).replace(/[&<>"']/g, function(c){
@@ -20,7 +19,7 @@
 
   async function call(body){
     const r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
-      body: JSON.stringify(Object.assign({ admin_nick: adm && adm.nick, admin_pass: adm && adm.pass }, body)) });
+      body: JSON.stringify(Object.assign({ admin_nick: ADMIN_CRED && ADMIN_CRED.nick, admin_pass: ADMIN_CRED && ADMIN_CRED.pass }, body)) });
     let d = {}; try{ d = await r.json(); }catch(e){}
     return { status: r.status, d: d };
   }
@@ -35,27 +34,17 @@
   function errText(d, status){ return ERR[d && d.error] || ('Нет связи с сервером [код ' + status + ']'); }
 
   /* ---------- окно входа ---------- */
-  W.openSuspiciousLogin = function(){
-    openModal(`<div style="padding:22px;max-width:340px;">
-      <div class="h2" style="margin-bottom:6px;">Подозрительные активности</div>
-      <div class="muted" style="font-size:13px;margin-bottom:12px;line-height:1.45;">Введите ник и пароль главного админа или старшего админа. Ничего не сохраняется.</div>
-      <input id="susNick" class="input" placeholder="Ник" autocomplete="username" style="margin-bottom:8px;width:100%;">
-      <input id="susPass" class="input" type="password" placeholder="Пароль" autocomplete="current-password" style="margin-bottom:12px;width:100%;">
-      <div id="susMsg" style="font-size:13px;min-height:18px;margin-bottom:10px;"></div>
-      <div class="row gap8">
-        <button class="btn btn-ghost" style="flex:1;" onclick="closeModal()">Отмена</button>
-        <button class="btn btn-primary" style="flex:1.4;" onclick="suspiciousOpen()">Открыть</button>
-      </div></div>`);
-  };
+  /* кнопка открывает список сразу: секретное слово уже введено при входе в админ-панель */
+  W.openSuspiciousLogin = function(){ suspiciousOpen(); };
 
   W.suspiciousOpen = async function(){
-    const n = (document.getElementById('susNick')||{}).value || '';
-    const p = (document.getElementById('susPass')||{}).value || '';
-    const msg = document.getElementById('susMsg');
-    adm = { nick: n.trim(), pass: p };
+    if(!ADMIN_CRED){ toast('Войдите в админ-панель по секретному слову','error'); return; }
     const res = await call({ action:'sus_list' });
-    if(!res.d.ok){ adm = null; if(msg){ msg.style.color='var(--danger)'; msg.textContent = errText(res.d, res.status); } return; }
-    adm.pass = p;
+    if(!res.d.ok){
+      if(res.d.error === 'bad_admin') ADMIN_CRED = null;
+      toast(errText(res.d, res.status), 'error');
+      return;
+    }
     suspiciousList(res.d.rows || []);
   };
 
@@ -110,7 +99,7 @@
   };
 
   W.suspiciousOpenAgain = async function(){
-    if(!adm){ closeModal(); return; }
+    if(!ADMIN_CRED){ closeModal(); return; }
     const res = await call({ action:'sus_list' });
     if(res.d.ok) suspiciousList(res.d.rows || []); else { closeModal(); toast(errText(res.d, res.status), 'error'); }
   };

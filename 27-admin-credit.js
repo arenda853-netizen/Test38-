@@ -15,8 +15,6 @@
       <input id="crTarget" class="input" placeholder="ID или ник игрока" style="margin-bottom:8px;width:100%;">
       <input id="crAmount" class="input" type="number" min="1" placeholder="Сумма, ₽" style="margin-bottom:8px;width:100%;">
       <input id="crLabel" class="input" placeholder="Причина (видна игроку)" maxlength="120" style="margin-bottom:12px;width:100%;">
-      <input id="crNick" class="input" placeholder="Ваш ник (главный админ)" style="margin-bottom:8px;width:100%;" autocomplete="username">
-      <input id="crPass" class="input" type="password" placeholder="Ваш пароль" style="margin-bottom:14px;width:100%;" autocomplete="current-password">
       <div id="crMsg" style="font-size:13px;margin-bottom:10px;min-height:18px;"></div>
       <div class="row gap8">
         <button class="btn btn-ghost" style="flex:1;" onclick="closeModal()">Отмена</button>
@@ -31,15 +29,14 @@
     const msg = document.getElementById('crMsg');
     const say = t => { if(msg){ msg.style.color = 'var(--danger)'; msg.textContent = t; } };
     const target = v('crTarget').trim(), amount = Math.round(Number(v('crAmount'))), label = v('crLabel').trim();
-    const nick = v('crNick').trim(), pass = v('crPass');
+    if(!ADMIN_CRED) return say('Войдите в админ-панель по секретному слову.');
     if(!target) return say('Укажите ID или ник игрока.');
     if(!(amount > 0 && amount <= 10000000)) return say('Сумма от 1 до 10 000 000 ₽.');
     if(!label) return say('Напишите причину начисления.');
-    if(!nick || !pass) return say('Введите ваш ник и пароль.');
     const btn = document.getElementById('crBtn'); if(btn) btn.disabled = true;
     try{
       const r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
-        body: JSON.stringify({ action:'credit', target: target, amount: amount, label: label, admin_nick: nick, admin_pass: pass,
+        body: JSON.stringify({ action:'credit', target: target, amount: amount, label: label, admin_nick: ADMIN_CRED.nick, admin_pass: ADMIN_CRED.pass,
           ref: (window.crypto && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g,'') : (Date.now().toString(36) + Math.random().toString(36).slice(2, 12)) }) });
       let d = {}; try{ d = await r.json(); }catch(e){}
       const map = {

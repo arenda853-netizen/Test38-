@@ -197,21 +197,16 @@ function genStaffPw(){
   staffFormPw=r; onRoute();
 }
 /* вызов админ-функции на сервере: ник и пароль спрашиваются один раз на вкладку, только в памяти */
-let SRV_ADMIN = null;
 const SRV_ADMIN_ERR = { bad_admin:'Неверный ник или пароль админа', not_allowed:'У этого аккаунта нет права на это действие', locked:'Слишком много попыток, подождите', no_account:'Аккаунт не найден', bad_pass:'Пароль должен быть не короче 30 символов', no_listing:'Объявление не найдено', no_reason:'Укажите причину', server:'Ошибка сервера, попробуйте ещё раз' };
+/* секретное слово спрашивается один раз при входе в админ-панель (ADMIN_CRED), здесь больше не спрашиваем */
 async function adminCall(action, payload, url){
-  if(!SRV_ADMIN){
-    const nick = window.prompt('Ваш ник админа:');
-    const pass = nick ? window.prompt('Ваш пароль админа:') : null;
-    if(!nick || !pass){ toast('Действие отменено','error'); return null; }
-    SRV_ADMIN = { nick: nick.trim(), pass: pass };
-  }
+  if(!ADMIN_CRED){ toast('Войдите в админ-панель по секретному слову','error'); return null; }
   try{
     const r = await fetch(url || AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
-      body: JSON.stringify(Object.assign({ action: action, admin_nick: SRV_ADMIN.nick, admin_pass: SRV_ADMIN.pass }, payload)) });
+      body: JSON.stringify(Object.assign({ action: action, admin_nick: ADMIN_CRED.nick, admin_pass: ADMIN_CRED.pass }, payload)) });
     const res = await r.json();
     if(res && res.ok) return res;
-    if(res && (res.error === 'bad_admin' || res.error === 'not_allowed' || res.error === 'locked')) SRV_ADMIN = null;
+    if(res && res.error === 'bad_admin') ADMIN_CRED = null;
     toast(SRV_ADMIN_ERR[res && res.error] || ('Ошибка: ' + ((res && res.error) || 'сервер')), 'error');
     return null;
   }catch(e){ toast('Нет связи с сервером','error'); return null; }

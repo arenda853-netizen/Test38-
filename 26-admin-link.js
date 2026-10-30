@@ -53,18 +53,53 @@
     </div>`;
   };
 
+  /* вход: сначала проверка привязки, затем одно окно с секретным словом (пароль выдачи админки) */
   W.adminLinkEnter = async function(){
     const l = await check(true);
     if(!l){ toast('Админ-доступ не привязан к этому аккаунту','error'); return; }
-    const role = l.role; let staffId = null, key = 'owner';
+    openModal(`<div style="padding:22px;max-width:340px;">
+      <div class="h2" style="margin-bottom:6px;">Секретное слово</div>
+      <div class="muted" style="font-size:13px;margin-bottom:14px;line-height:1.5;">Введите пароль, который выдал вам главный админ. Он нужен один раз при входе и нигде не сохраняется.</div>
+      <input id="secWord" class="input" type="password" autocomplete="current-password" placeholder="Секретное слово" style="margin-bottom:10px;width:100%;" onkeydown="if(event.key==='Enter')adminSecretSubmit()">
+      <div id="secMsg" style="font-size:13px;min-height:18px;margin-bottom:10px;color:var(--danger);"></div>
+      <div class="row gap8">
+        <button class="btn btn-ghost" style="flex:1;" onclick="closeModal()">Отмена</button>
+        <button id="secBtn" class="btn btn-primary" style="flex:1.4;" onclick="adminSecretSubmit()">Войти</button>
+      </div></div>`);
+    setTimeout(function(){ const el = document.getElementById('secWord'); if(el) el.focus(); }, 50);
+  };
+
+  W.adminSecretSubmit = async function(){
+    const el = document.getElementById('secWord'); const msg = document.getElementById('secMsg');
+    const say = function(t){ if(msg) msg.textContent = t; };
+    const pass = el ? el.value : '';
+    const acc = linkAcc;
+    if(!pass){ say('Введите секретное слово.'); return; }
+    if(!acc || !link){ say('Админ-доступ не привязан. Закройте окно и попробуйте снова.'); return; }
+    const btn = document.getElementById('secBtn'); if(btn) btn.disabled = true;
+    let res = null;
+    try{
+      const r = await fetch(SUPPORT_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ action:'admin_check', admin_nick: acc, admin_pass: pass }) });
+      res = await r.json();
+    }catch(e){ res = null; }
+    if(btn) btn.disabled = false;
+    if(el) el.value = '';
+    if(!res || !res.ok){
+      if(res && res.error === 'locked') say('Слишком много попыток. Подождите '+(res.minutes||1)+' мин.');
+      else if(!res) say('Нет связи с сервером. Попробуйте ещё раз.');
+      else say('Неверное секретное слово.');
+      return;
+    }
+    const role = res.role; let staffId = null, key = 'owner';
     if(role !== 'owner'){
       ensureStaff();
-      staffId = l.staff_id;
+      staffId = link.staff_id;
       const st = staffId && state.staff[staffId];
-      if(!st || st.role !== role){ toast('Права отозваны главным админом','error'); return; }
+      if(!st || st.role !== role){ say('Права отозваны главным админом.'); return; }
       key = 'staff_' + staffId;
     }
-    if(!lockAcquire(key)){ toast('Этот доступ уже занят другим сеансом','error'); return; }
+    if(!lockAcquire(key)){ say('Этот доступ уже занят другим сеансом.'); return; }
+    ADMIN_CRED = { nick: acc, pass: pass };
     ADMIN = { role: role, staffId: staffId, key: key, via: 'bot' };
     persistAdminSess();
     try{
