@@ -177,7 +177,7 @@ function sellerAccKey(l){
       rows['a:'+a+':deals'] = msgStripDeals(state.deals || []);
       /* баланс и историю браузер не отправляет: их ведёт только сервер (история и баланс приходят с сервера) */
       rows['a:'+a+':notif'] = state.notifications || [];
-      if(state.me){ const m = Object.assign({}, state.me); delete m.transactions; delete m.balance; delete m.isAdmin; delete m.ip; rows['a:'+a+':me'] = m; }
+      /* профиль (имя, фото) сохраняет сервер (profile_set); строку профиля браузер не отправляет */
       rows['a:'+a+':my'] = state.myListings || [];
       rows['a:'+a+':fav'] = state.favorites || [];
     }

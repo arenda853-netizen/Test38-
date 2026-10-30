@@ -259,10 +259,8 @@ function verifySheet(){
 function confirmVerify(){
   closeModal();
   toast('Документы отправлены на проверку','success');
+  /* верификацию ставит администратор на сервере; браузер её больше не выставляет */
   setTimeout(()=>{
-    state.me.verified = true;
-    saveState();
-    toast('Аккаунт верифицирован!','success');
     if(currentHash().path==='/profile') onRoute();
   }, 1800);
 }
@@ -504,18 +502,33 @@ function handleAvatarUpload(e){
   const file = e.target.files[0];
   if(!file) return;
   compressImage(file, 512, 0.85).then(url=>{
-    state.me.photo = url;
-    saveState();
-    onRoute();
-    toast('Фото профиля обновлено','success');
+    profileSet({ photo: url }, function(){
+      state.me.photo = url;
+      saveState();
+      onRoute();
+      toast('Фото профиля обновлено','success');
+    });
   }).catch(()=>toast('Не удалось обработать фото','error'));
+}
+/* имя и фото сохраняет сервер (profile_set); остальные поля профиля браузер не меняет */
+function profileSet(fields, onOk){
+  let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
+  if(!tok){ toast('Войдите в аккаунт','error'); return; }
+  fetch(ACCOUNT_STATE_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify(Object.assign({ action:'profile_set', token: tok }, fields)) })
+    .then(function(r){ return r.json(); }).then(function(res){
+      if(res && res.ok){ onOk(); return; }
+      toast(res && res.error==='bad_name' ? 'Имя от 2 символов' : (res && res.error==='bad_photo' ? 'Фото слишком большое или неверного формата' : (res && res.error==='too_many' ? 'Слишком много действий, подождите' : 'Не удалось сохранить')), 'error');
+    }).catch(function(){ toast('Нет связи с сервером','error'); });
 }
 function saveProfile(e){
   e.preventDefault();
-  state.me.name = document.getElementById('editName').value.trim() || state.me.name;
-  saveState();
-  toast('Профиль обновлён','success');
-  navigate('/profile');
+  const name = document.getElementById('editName').value.trim() || state.me.name;
+  profileSet({ name: name }, function(){
+    state.me.name = name;
+    saveState();
+    toast('Профиль обновлён','success');
+    navigate('/profile');
+  });
   return false;
 }
 
