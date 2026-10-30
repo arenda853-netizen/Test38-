@@ -445,7 +445,8 @@ function submitReview(dealId){
       const acc = accUsers().find(a=>a.uid===cid || supportKeyByName(a.key)===cid);
       if(acc){
         const rv = {author: state.me.name, rating: reviewStarValue, text: text || 'Сделка прошла успешно.', ts: Date.now()};
-        kvUpdate('a:'+acc.key+':me', function(cur){
+        /* отзывы теперь пишет сервер (review_add), эта запись отключена */
+        if(false) kvUpdate('a:'+acc.key+':me', function(cur){
           if(!cur || typeof cur !== 'object' || Array.isArray(cur)) return undefined;
           cur.reviews = Array.isArray(cur.reviews) ? cur.reviews : [];
           cur.reviews.unshift(rv);

@@ -119,6 +119,8 @@ function dealParties(d){
 }
 function syncDealRows(d){
   if(!d) return;
+  /* копии сделок другой стороны больше не пишет браузер: статус берётся с сервера */
+  return;
   const me = (state.authed && state.accKey) ? state.accKey : null;
   const all = window.__ALL_DEALS || {};
   Object.keys(all).forEach(function(acc){

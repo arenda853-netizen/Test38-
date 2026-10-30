@@ -209,17 +209,25 @@ function sellerAccKey(l){
     try{ const r = await fetch(ACCOUNT_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: CFG.key }, body: JSON.stringify({ action:'deals_list', token: tok }) }); res = await r.json(); }catch(e){ return; }
     if(!res || !res.ok || !Array.isArray(res.deals)) return;
     if(!Array.isArray(state.deals)) state.deals = [];
-    let added = 0;
+    let added = 0, updated = 0;
     res.deals.forEach(function(sd){
+      /* сделка с защитой: статус, спор и подтверждения берём только с сервера */
+      const same = state.deals.find(function(d){ return d && d.escrowId && d.escrowId === sd.escrowId; });
+      if(same){
+        ['status','disputed','disputeBy','sellerConfirmed','buyerConfirmed','completedAt','payout','reviewed'].forEach(function(k){
+          if(sd[k] !== undefined && same[k] !== sd[k]){ same[k] = sd[k]; updated++; }
+        });
+        if(sd.updatedAt && (same.updatedAt || 0) < sd.updatedAt){ same.updatedAt = sd.updatedAt; }
+        return;
+      }
       const dup = state.deals.some(function(d){
         if(!d) return false;
-        if(d.escrowId && d.escrowId === sd.escrowId) return true;
         return !d.escrowId && d.listingId === sd.listingId && d.role === sd.role && String(d.peerKey||'') === String(sd.peerKey||'') && d.status !== 'completed' && d.status !== 'cancelled';
       });
       if(dup) return;
       state.deals.unshift(sd); added++;
     });
-    if(added){ try{ saveState(); }catch(e){} if(typeof refreshUI === 'function') refreshUI(); }
+    if(added || updated){ try{ saveState(); }catch(e){} if(typeof refreshUI === 'function') refreshUI(); }
   }
   setTimeout(mergeServerDeals, 4000);
   setInterval(mergeServerDeals, 60000);
