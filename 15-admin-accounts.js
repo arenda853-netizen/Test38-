@@ -257,22 +257,26 @@ function accStatusSheet(enc, kind){
   <div class="row gap8"><button class="btn btn-ghost" style="flex:1;" onclick="closeModal()">Отмена</button>
   <button class="btn ${lifting?'btn-accent2':'btn-danger'}" style="flex:1;" onclick="accApplyStatus('${enc}','${kind}')">Подтвердить</button></div>`;
 }
-function accApplyStatus(enc, kind){
+/* статус аккаунта меняет только сервер (acc_status); здесь лишь обновляем копию в памяти вкладки */
+function applyServerStatus(res){
+  if(!res || !res.results) return;
+  const db = readAccDb();
+  Object.keys(res.results).forEach(k=>{ const r = res.results[k]; if(db[k]){ db[k].status = r.status; db[k].restrictions = r.restrictions; } });
+  writeAccDb(db);
+}
+async function accApplyStatus(enc, kind){
   if(!can(kind==='frozen'?'freeze':'ban')){ toast('Недостаточно прав','error'); return; }
   const key = decodeURIComponent(enc);
   const reason = ((document.getElementById('accStatusReason')||{}).value||'').trim();
   if(reason.length<3){ toast('Укажите причину','error'); return; }
-  const db = readAccDb(), a = db[key]; if(!a) return;
-  const target = kind==='frozen' ? 'frozen' : 'banned';
-  a.status = (a.status===target) ? 'active' : target;
-  recordRestriction(a, kind, a.status===target, reason, 'из списка аккаунтов');
-  writeAccDb(db);
-  if(typeof window.__SYNC !== 'undefined' && window.__SYNC.flush){
-    window.__SYNC.flush();
-  }
-  logOp(kind==='frozen'?'Заморозка/разморозка':'Бан/разбан', (a.uid||key)+' → '+a.status, 'bans', {target:a.uid||key, name:a.nickname, ip:a.ip||'', result:({active:'Активен (снято ограничение)', frozen:'Заморожен', banned:'Забанен'})[a.status], reason:reason});
+  const a0 = readAccDb()[key]; if(!a0) return;
+  const res = await adminDataCall('acc_status', { kind: kind==='frozen'?'frozen':'banned', keys: [key], reason: reason, how: 'из списка аккаунтов' });
+  if(!res || !res.ok){ toast('Не удалось: '+((res&&res.error)||'нет связи'),'error'); return; }
+  applyServerStatus(res);
+  const st = (res.results[key] && res.results[key].status) || a0.status;
+  logOp(kind==='frozen'?'Заморозка/разморозка':'Бан/разбан', (a0.uid||key)+' → '+st, 'bans', {target:a0.uid||key, name:a0.nickname, ip:a0.ip||'', result:({active:'Активен (снято ограничение)', frozen:'Заморожен', banned:'Забанен'})[st], reason:reason});
   saveState(); closeModal();
-  toast(a.status==='banned'?'Аккаунт забанен':(a.status==='frozen'?'Аккаунт заморожен':'Ограничение снято'), a.status==='active'?'success':'error');
+  toast(st==='banned'?'Аккаунт забанен':(st==='frozen'?'Аккаунт заморожен':'Ограничение снято'), st==='active'?'success':'error');
   renderAccList(); enforceAccStatus();
 }
 function accNewStaffPw(id){

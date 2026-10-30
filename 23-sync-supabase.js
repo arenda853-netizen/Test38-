@@ -181,16 +181,7 @@ function sellerAccKey(l){
       rows['a:'+a+':my'] = state.myListings || [];
       rows['a:'+a+':fav'] = state.favorites || [];
     }
-    let db = {}; try{ db = readAccDb(); }catch(e){}
-    /* хэши паролей и IP/устройства никогда не уходят в общую запись аккаунта (лежат в pw:/pi:) */
-    const stripPw = function(a){ if(!a || typeof a !== 'object') return a; const o = Object.assign({}, a); delete o.passHash; delete o.salt; delete o.password; delete o.ip; delete o.device; return o; };
-    Object.keys(db).forEach(k=>{ rows['acc:'+k] = stripPw(db[k]); });
-    /* удалённые локально объекты → надгробия */
-    Object.keys(base).forEach(k=>{
-      if(rows[k] !== undefined) return;
-      if(base[k] === 'null') return;
-      if(k.startsWith('acc:')) rows[k] = null;
-    });
+    /* записи аккаунтов (acc:*) браузер больше не отправляет: статус, бан и заморозку меняет сервер (acc_status) */
     return rows;
   }
 

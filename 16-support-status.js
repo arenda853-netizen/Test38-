@@ -322,7 +322,7 @@ async function rejectListing(){
   toast('Отказано. Продавец увидит причину в чате «Поддержка»');
   if(rejDraft.back) navigate('/admin/listings'); else onRoute();
 }
-function banById(){
+async function banById(){
   if(!can('ban')) return;
   let id = normId(adminBanIdValue);
   if(!id){ toast('Введите ID аккаунта','error'); return; }
@@ -332,9 +332,10 @@ function banById(){
     if(au){
       const rs = (adminBanIdReason||'').trim();
       if(rs.length<3){ toast('Укажите причину бана','error'); return; }
-      const adb = readAccDb(), a = adb[au.key]; a.status = 'banned';
-      recordRestriction(a, 'banned', true, rs, 'по ID');
-      writeAccDb(adb);
+      const a = readAccDb()[au.key] || {};
+      const res = await adminDataCall('acc_status', { kind:'banned', keys:[au.key], on:true, reason:rs, how:'по ID' });
+      if(!res || !res.ok){ toast('Не удалось забанить: '+((res&&res.error)||'нет связи'),'error'); return; }
+      applyServerStatus(res);
       logOp('Бан по ID', id, 'bans', {target:id, name:a.nickname, ip:a.ip||'', result:'Забанен по ID', reason:rs});
       adminBanIdValue=''; adminBanIdReason=''; saveState();
       toast('Аккаунт '+id+' забанен','success'); onRoute(); enforceAccStatus(); return;
@@ -357,7 +358,7 @@ function banById(){
   toast('Аккаунт '+id+' забанен','success');
   onRoute();
 }
-function banByIp(){
+async function banByIp(){
   if(!can('ban')) return;
   const ip = (adminBanIpValue||'').trim();
   if(!ip){ toast('Введите IP','error'); return; }
@@ -366,7 +367,10 @@ function banByIp(){
   if(targets.length===0 && accTargets.length===0){ toast('Пользователей с таким IP не найдено','error'); return; }
   const reason = (adminBanIpReason||'').trim();
   if(reason.length<3){ toast('Укажите причину бана','error'); return; }
-  if(accTargets.length){ const adb = readAccDb(); accTargets.forEach(x=>{ const a = adb[x.key]; if(a){ a.status='banned'; recordRestriction(a,'banned',true,reason,'по IP '+ip); } }); writeAccDb(adb); }
+  if(accTargets.length){
+    const res = await adminDataCall('acc_status', { kind:'banned', keys: accTargets.map(x=>x.key), on:true, reason:reason, how:'по IP '+ip });
+    if(res && res.ok) applyServerStatus(res); else toast('Аккаунты не забанены: '+((res&&res.error)||'нет связи'),'error');
+  }
   targets.forEach(u=>{
     u.status='banned';
     recordRestriction(u, 'banned', true, reason, 'по IP '+ip);
@@ -475,19 +479,19 @@ function confirmUserStatus(userId, kind){
   closeModal();
   applyUserStatus(userId, kind, reason);
 }
-function applyUserStatus(userId, kind, reason){
+async function applyUserStatus(userId, kind, reason){
   if(!can(kind==='frozen'?'freeze':'ban')){ toast('Недостаточно прав','error'); return; }
   if(userId === 'me'){ toast('Нельзя ограничить собственный аккаунт','error'); return; }
   const u = adminFindRow(userId);
   if(!u) return;
   if(u._acc){
-    const adb = readAccDb(), a = adb[u._acc]; if(!a) return;
-    const want = kind==='frozen' ? 'frozen' : 'banned';
-    a.status = (a.status===want) ? 'active' : want;
-    recordRestriction(a, kind, a.status===want, reason, 'из профиля/списка');
-    writeAccDb(adb);
-    logOp(kind==='frozen'?'Заморозка/разморозка':'Бан/разбан', userId+' → '+a.status, 'bans', {target:userId, name:a.nickname, ip:a.ip||'', result:({active:'Активен (снято ограничение)', frozen:'Заморожен', banned:'Забанен'})[a.status]||a.status, reason:reason});
-    saveState(); toast(a.status==='active' ? 'Ограничение снято' : (a.status==='frozen' ? 'Пользователь заморожен' : 'Пользователь забанен'), a.status==='active' ? 'success' : 'error');
+    const a = readAccDb()[u._acc]; if(!a) return;
+    const res = await adminDataCall('acc_status', { kind: kind==='frozen'?'frozen':'banned', keys:[u._acc], reason: reason, how:'из профиля/списка' });
+    if(!res || !res.ok){ toast('Не удалось: '+((res&&res.error)||'нет связи'),'error'); return; }
+    applyServerStatus(res);
+    const st = (res.results[u._acc] && res.results[u._acc].status) || a.status;
+    logOp(kind==='frozen'?'Заморозка/разморозка':'Бан/разбан', userId+' → '+st, 'bans', {target:userId, name:a.nickname, ip:a.ip||'', result:({active:'Активен (снято ограничение)', frozen:'Заморожен', banned:'Забанен'})[st]||st, reason:reason});
+    saveState(); toast(st==='active' ? 'Ограничение снято' : (st==='frozen' ? 'Пользователь заморожен' : 'Пользователь забанен'), st==='active' ? 'success' : 'error');
     try{ enforceAccStatus(); }catch(e){}
     if(document.getElementById('admin-list')) renderAdminList(); else onRoute();
     return;
