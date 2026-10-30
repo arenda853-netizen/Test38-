@@ -592,14 +592,10 @@ function sellerAccKey(l){
   /* получение: сделки с серверной частью — с сервера (по курсору), остальные — как раньше */
   /* админ читает чужие сделки: пароль спрашивается один раз за загрузку страницы, хранится только в памяти вкладки */
   let admMem = null, admBlockedUntil = 0;
+  /* секретное слово уже введено при входе в админ-панель (ADMIN_CRED), больше ничего не спрашиваем */
   async function getAdminMsgCreds(){
-    if(admMem) return admMem;
-    if(Date.now() < admBlockedUntil) return null;
-    const nick = window.prompt('Ник админа (для чтения переписки сделки):');
-    const pass = nick ? window.prompt('Пароль админа:') : null;
-    if(!nick || !pass){ admBlockedUntil = Date.now() + 60000; return null; }
-    admMem = { nick: nick, pass: pass };
-    return admMem;
+    if(typeof ADMIN_CRED === 'undefined' || !ADMIN_CRED) return null;
+    return { nick: ADMIN_CRED.nick, pass: ADMIN_CRED.pass };
   }
   async function adminDealMsgs(escrowId, after){
     const c = await getAdminMsgCreds();
