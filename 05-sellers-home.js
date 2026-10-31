@@ -29,7 +29,10 @@ function presUpdate(acc, v, upd, initial){
   else if(!initial && tn && u && (now + (window.__presSkew||0) - u) < 4000) e.rcvTn = now;
   window.__PRES[acc] = e;
 }
+/* показ «онлайн» и «печатает» отключён: статус можно подделать, он вводит в заблуждение. Чтобы вернуть, поставить true */
+const PRES_SHOW = false;
 function presOnlineKey(key){
+  if(!PRES_SHOW) return false;
   const e = window.__PRES[String(key||'').trim().toLowerCase()];
   if(!e || !e.v || e.v.off) return false;
   return (Date.now() + (window.__presSkew||0) - e.upd) < 45000;
@@ -37,6 +40,7 @@ function presOnlineKey(key){
 function peerKeyOf(d){ return String((d && (d.peerKey || (d.counterparty && d.counterparty.name))) || '').trim().toLowerCase(); }
 function peerOnline(d){ return presOnlineKey(peerKeyOf(d)); }
 function peerTyping(d){
+  if(!PRES_SHOW) return false;
   const e = window.__PRES[peerKeyOf(d)];
   if(!e || !e.v || e.v.off || !presOnlineKey(peerKeyOf(d))) return false;
   return e.v.ty === d.id && !!e.rcvTn && (Date.now() - e.rcvTn) < 4000;
