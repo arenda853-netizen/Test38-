@@ -57,10 +57,9 @@ function reportResolve(id, remove){
   saveState(); toast(remove?'Отзыв удалён':'Жалоба отклонена','success'); onRoute();
 }
 /* --- отключение задержки денег по ID (только главный админ) --- */
+/* флаг «без задержки» приходит с сервера только для этого игрока (own_rows.hold) */
 function holdOffForMe(){
-  if(!state.noHold) return false;
-  const keys = ['me', supportUidMe()].filter(Boolean);
-  return keys.some(k=>state.noHold[k]);
+  return !!state.holdOn;
 }
 function pageAdminHold(){
   if(!can('hold')) return adminGuard('Задержка денег');

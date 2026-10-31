@@ -843,6 +843,7 @@ function sellerAccKey(l){
     if(!ready) return;
     const acc = accName(); if(!acc) return;
     const own = await ownRowsFetch(); if(!own) return;
+    state.holdOn = !!own.hold;
     ['deals','tx','notif','my','fav'].forEach(function(name){
       const v = own[name]; if(v === undefined || v === null) return;
       const key = 'a:'+acc+':'+name;
@@ -863,6 +864,7 @@ function sellerAccKey(l){
       if(Array.isArray(res.logs)) state.logs = res.logs;
       if(res.staff && typeof res.staff === 'object') state.staff = res.staff;
       state.ownerLast = res.ownerLast || null;
+      if(res.noHold && typeof res.noHold === 'object') state.noHold = res.noHold;
     }
     uiDirty = true;
     try{ refreshUI(); }catch(e){}
@@ -881,6 +883,7 @@ function sellerAccKey(l){
     /* свои данные (сделки, операции, уведомления, объявления, избранное) — с сервера по токену; отсутствующие = пусто */
     const own = await ownRowsFetch();
     if(!own) return false;
+    state.holdOn = !!own.hold;
     ['deals','tx','notif','my','fav'].forEach(function(name){ if(own[name] !== undefined && own[name] !== null) got['a:'+key+':'+name] = own[name]; });
     if(!state.dealsByAcc) state.dealsByAcc = {}; if(!state.txByAcc) state.txByAcc = {}; if(!state.notifByAcc) state.notifByAcc = {};
     const d = Array.isArray(got['a:'+key+':deals']) ? got['a:'+key+':deals'] : [];
