@@ -242,6 +242,7 @@ window.submitLocalLogin = async function(){
     try{
       const r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ action:'me', token: tok }) });
       const d = await r.json();
+      if(d && d.ok && d.token) authSaveToken(d.token);   /* пропуск обновляется при каждом входе */
       if(!d || !d.ok){
         /* пропуск недействителен: только тогда стираем; при сбое связи оставляем */
         if(d && d.error === 'bad_token'){ try{ localStorage.removeItem('dp_token'); }catch(e){} }
