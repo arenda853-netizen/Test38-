@@ -233,3 +233,31 @@ window.submitLocalLogin = async function(){
     window.logoutAccount = function(){ try{ localStorage.removeItem('dp_token'); }catch(e){} return _lo.apply(this, arguments); };
   }
 })();
+
+/* ---------- вход держится в браузере до выхода: после перезагрузки пароль не спрашиваем ---------- */
+(function(){
+  let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
+  if(!tok) return;
+  async function restoreSession(){
+    try{
+      const r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ action:'me', token: tok }) });
+      const d = await r.json();
+      if(!d || !d.ok){
+        /* пропуск недействителен: только тогда стираем; при сбое связи оставляем */
+        if(d && d.error === 'bad_token'){ try{ localStorage.removeItem('dp_token'); }catch(e){} }
+        return;
+      }
+      const key = String(d.acc || '').trim().toLowerCase();
+      if(!key) return;
+      if(window.__SYNC && window.__SYNC.whenReady){ try{ await window.__SYNC.whenReady(10000); }catch(e){} }
+      try{ if(window.__SYNC && window.__SYNC.fetchAccount) await window.__SYNC.fetchAccount(key); }catch(e){}
+      await window.applyLocalUser((d.rec && d.rec.display) || key);
+    }catch(e){}
+  }
+  window.addEventListener('DOMContentLoaded', restoreSession);
+})();
+
+/* выход или вход в другой вкладке: эта вкладка перечитывает страницу и тоже выходит */
+window.addEventListener('storage', function(e){
+  if(e.key === 'dp_token') location.reload();
+});
