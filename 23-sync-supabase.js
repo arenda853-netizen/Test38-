@@ -829,23 +829,26 @@ function sellerAccKey(l){
   }
 
   /* ---------- свои сделки: сервер отдаёт их по токену (публичного чтения копий сделок нет) ---------- */
-  async function ownDealsFetch(){
+  async function ownRowsFetch(){
     let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
     if(!tok) return null;
     try{
-      const r = await fetch(ACCOUNT_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: CFG.key }, body: JSON.stringify({ action:'own_deals', token: tok }) });
+      const r = await fetch(ACCOUNT_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: CFG.key }, body: JSON.stringify({ action:'own_rows', token: tok }) });
       const j = await r.json();
-      return (j && j.ok && Array.isArray(j.deals)) ? j.deals : null;
+      return (j && j.ok && j.rows && typeof j.rows === 'object') ? j.rows : null;
     }catch(e){ return null; }
   }
   /* обновляем свои сделки раз в 15 секунд: сюда приходят ходы собеседника (их пишет сервер) */
   async function ownDealsSync(){
     if(!ready) return;
     const acc = accName(); if(!acc) return;
-    const d = await ownDealsFetch(); if(!d) return;
-    const k = 'a:'+acc+':deals';
-    if(base[k] === J(d)) return;
-    applyRemote(k, d, false);
+    const own = await ownRowsFetch(); if(!own) return;
+    ['deals','tx','notif','my','fav'].forEach(function(name){
+      const v = own[name]; if(v === undefined || v === null) return;
+      const key = 'a:'+acc+':'+name;
+      if(base[key] === J(v)) return;
+      applyRemote(key, v, false);
+    });
   }
   setInterval(ownDealsSync, 15000);
 
@@ -875,12 +878,17 @@ function sellerAccKey(l){
     const res = await http('GET', '?select=key,value&key=in.(' + keys.map(q).map(encodeURIComponent).join(',') + ')');
     if(!res.ok){ failStatus(res); return false; }
     const got = {}; (res.data||[]).forEach(r=>{ got[r.key] = r.value; });
+    /* свои данные (сделки, операции, уведомления, объявления, избранное) — с сервера по токену; отсутствующие = пусто */
+    const own = await ownRowsFetch();
+    if(!own) return false;
+    ['deals','tx','notif','my','fav'].forEach(function(name){ if(own[name] !== undefined && own[name] !== null) got['a:'+key+':'+name] = own[name]; });
     if(!state.dealsByAcc) state.dealsByAcc = {}; if(!state.txByAcc) state.txByAcc = {}; if(!state.notifByAcc) state.notifByAcc = {};
-    const d = await ownDealsFetch(key), t = got['a:'+key+':tx'], n = got['a:'+key+':notif'];
-    if(!Array.isArray(d)) return false;
-    state.dealsByAcc[key] = Array.isArray(d) ? d : [];
-    if(window.__msgSrv && Array.isArray(d)) d.forEach(function(x){ if(x){ x.messages = Array.isArray(x.messages) ? x.messages : []; markLegacy(x.messages); } }); state.txByAcc[key] = Array.isArray(t) ? t : []; state.notifByAcc[key] = Array.isArray(n) ? n : [];
-    if(!Array.isArray(d)) delete state.dealsByAcc[key]; if(!Array.isArray(t)) delete state.txByAcc[key]; if(!Array.isArray(n)) delete state.notifByAcc[key];
+    const d = Array.isArray(got['a:'+key+':deals']) ? got['a:'+key+':deals'] : [];
+    const t = got['a:'+key+':tx'], n = got['a:'+key+':notif'];
+    state.dealsByAcc[key] = d;
+    if(window.__msgSrv) d.forEach(function(x){ if(x){ x.messages = Array.isArray(x.messages) ? x.messages : []; markLegacy(x.messages); } });
+    state.txByAcc[key] = Array.isArray(t) ? t : []; state.notifByAcc[key] = Array.isArray(n) ? n : [];
+    if(!Array.isArray(t)) delete state.txByAcc[key]; if(!Array.isArray(n)) delete state.notifByAcc[key];
     keys.forEach(k=>{ base[k] = (k in got && got[k] !== null) ? J(got[k]) : undefined; if(base[k] === undefined) delete base[k]; });
     base['a:'+key+':deals'] = J(d);
     window.__syncRemoteMe = got['a:'+key+':me']; window.__syncRemoteMy = got['a:'+key+':my']; window.__syncRemoteFav = got['a:'+key+':fav'];
