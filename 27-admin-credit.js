@@ -57,16 +57,6 @@
     }finally{ if(btn) btn.disabled = false; }
   };
 
-  /* кнопка в админ-панели: видна только главному админу */
-  const _pageAdmin = W.pageAdmin;
-  if(typeof _pageAdmin === 'function'){
-    W.pageAdmin = function(){
-      const html = _pageAdmin.apply(this, arguments);
-      if(!(typeof isOwner === 'function' && isOwner())) return html;
-      const card = adminMenuRow('tag','Начислить деньги','По ID игрока. Только для главного админа','openModal(adminCreditSheet())');
-      return String(html).replace('<div class="page">', '<div class="page">' + card);
-    };
-  }
 
   /* ---------- IP И УСТРОЙСТВА: только роли с доступом, только в памяти вкладки ---------- */
   const IP_ROLES = ['owner','admin','senior','logger'];
@@ -132,32 +122,7 @@
   };
 
   /* кнопка разблокировки на главной админки: только для ролей с доступом и только если ещё не открыто */
-  const _pageAdmin2 = W.pageAdmin;
-  if(typeof _pageAdmin2 === 'function'){
-    W.pageAdmin = function(){
-      let html = _pageAdmin2.apply(this, arguments);
-      if(W.canSeeIp() && !W.__IPMAP){
-        const card = adminMenuRow('eye','Показать IP и устройства','Нужен ваш пароль. Открывается только на этой вкладке','openModal(ipUnlockSheet())');
-        html = String(html).replace('<div class="page">', '<div class="page">' + card);
-      }
-      return html;
-    };
-  }
 
 })();
 
 /* ---------- ЗАПАСНАЯ КАРТОЧКА: добавляется прямо в открытую страницу админки (только главный админ) ---------- */
-(function(){
-  setInterval(function(){
-    try{
-      if(!(typeof isOwner === 'function' && isOwner())) return;
-      const page = document.querySelector('.page');
-      if(!page) return;
-      if(document.body.innerText.indexOf('Админ-панель') < 0) return;
-      if(page.innerText.indexOf('Начислить деньги') >= 0) return;
-      const wrap = document.createElement('div');
-      wrap.innerHTML = adminMenuRow('tag','Начислить деньги','По ID игрока. Только для главного админа','openModal(adminCreditSheet())');
-      page.insertBefore(wrap.firstElementChild, page.firstChild);
-    }catch(e){}
-  }, 800);
-})();

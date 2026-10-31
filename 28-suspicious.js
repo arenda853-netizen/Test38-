@@ -114,19 +114,4 @@
     suspiciousOpenAgain();
   };
 
-  /* кнопка в админ-панели (владелец и старший админ) */
-  setInterval(function(){
-    try{
-      if(!canSee()) return;
-      const page = document.querySelector('.page');
-      if(!page) return;
-      if(document.body.innerText.indexOf('Админ-панель') < 0) return;
-      if(document.getElementById('susCard')) return;
-      const wrap = document.createElement('div');
-      wrap.innerHTML = adminMenuRow('shield','Подозрительные активности','Заморозки, история денег, разморозка','openSuspiciousLogin()');
-      const card = wrap.firstElementChild;
-      card.id = 'susCard';
-      page.insertBefore(card, page.firstChild);
-    }catch(e){}
-  }, 800);
 })();
