@@ -200,7 +200,6 @@
         }
         if(f.paused){ delete f.paused; rerender = true; dirty = true; }
         if(f.unlockAt <= now || (typeof holdOffForMe === 'function' && holdOffForMe())){
-          state.me.balance += f.amount;
           state.me.transactions.unshift({type:'sale', amount:f.amount, label:'Поступление от продажи «'+f.label+'»', ts:now});
           unlocked = true; return false;
         }

@@ -844,6 +844,7 @@ function sellerAccKey(l){
     const acc = accName(); if(!acc) return;
     const own = await ownRowsFetch(); if(!own) return;
     state.holdOn = !!own.hold;
+    if(typeof own.balance === 'number' && state.me && state.me.balance !== own.balance){ state.me.balance = own.balance; uiDirty = true; }
     ['deals','tx','notif','my','fav'].forEach(function(name){
       const v = own[name]; if(v === undefined || v === null) return;
       const key = 'a:'+acc+':'+name;
@@ -884,6 +885,7 @@ function sellerAccKey(l){
     const own = await ownRowsFetch();
     if(!own) return false;
     state.holdOn = !!own.hold;
+    if(typeof own.balance === 'number') window.__syncOwnBalance = own.balance;
     ['deals','tx','notif','my','fav'].forEach(function(name){ if(own[name] !== undefined && own[name] !== null) got['a:'+key+':'+name] = own[name]; });
     if(!state.dealsByAcc) state.dealsByAcc = {}; if(!state.txByAcc) state.txByAcc = {}; if(!state.notifByAcc) state.notifByAcc = {};
     const d = Array.isArray(got['a:'+key+':deals']) ? got['a:'+key+':deals'] : [];
@@ -970,6 +972,7 @@ function sellerAccKey(l){
     const rm = window.__syncRemoteMe;
     if(isObj(rm)){
       const keep = { transactions: state.me.transactions, isAdmin: false, ip: state.me.ip };
+      if(typeof window.__syncOwnBalance === 'number') keep.balance = window.__syncOwnBalance;
       state.me = Object.assign({}, state.me, rm, keep, { name: name });
       base['a:'+key+':me'] = J(rm);
     }

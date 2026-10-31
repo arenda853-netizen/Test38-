@@ -62,6 +62,7 @@
           const rm = window.__syncRemoteMe;
           if(isObj(rm)){
             const keep = { transactions: [], isAdmin: false, ip: state.me.ip };
+            if(typeof window.__syncOwnBalance === 'number') keep.balance = window.__syncOwnBalance;
             state.me = Object.assign({}, state.me, rm, keep, { name: nickname });
             base['a:'+key+':me'] = J(rm);
           }
