@@ -598,7 +598,7 @@ function sellerAccKey(l){
     }
     return changed;
   }
-  /* старые сообщения: свои сделки читает игрок через account-state, чужие — только админ через admin-data */
+  /* старые сообщения: читает только участник своей сделки через account-state */
   async function oldMsgFetch(ids, since){
     const out = [];
     const mine = ids.filter(function(id){ return (state.deals||[]).some(function(x){ return x && x.id === id; }); });
@@ -613,12 +613,7 @@ function sellerAccKey(l){
         out.push.apply(out, j.rows || []);
       }catch(e){ return null; }
     }
-    if(others.length){
-      if(!(typeof ADMIN !== 'undefined' && ADMIN && typeof ADMIN_CRED !== 'undefined' && ADMIN_CRED)) return out;
-      const res = await adminDataCall('msgs_admin_list', { deal_ids: others, since: since || '' });
-      if(!res || !res.ok) return null;
-      out.push.apply(out, res.rows || []);
-    }
+    /* чужие старые чаты никто, кроме участников сделки, не читает (админы тоже): эти id пропускаем */
     return out;
   }
   /* получение: сделки с серверной частью — с сервера (по курсору), остальные — как раньше */
