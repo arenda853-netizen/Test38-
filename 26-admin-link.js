@@ -104,6 +104,7 @@
     persistAdminSess();
     /* время входа и устройство записывает сервер (admin-data seen_set); IP браузер не отправляет */
     try{ adminDataCall('seen_set', { device: deviceLabel() }); }catch(e){}
+    try{ if(typeof window.__adminReadNow === 'function') window.__adminReadNow(); }catch(e){}
     logOp('Вход в админ-режим (через Telegram-бота)'); saveState();
     closeModal(); toast('Вход выполнен: ' + ADMIN_ROLES[role].label, 'success'); navigate('/admin');
   };

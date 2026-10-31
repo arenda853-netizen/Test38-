@@ -849,6 +849,24 @@ function sellerAccKey(l){
   }
   setInterval(ownDealsSync, 15000);
 
+  /* админские данные (жалобы, журнал, персонал) — через сервер, только при входе админа с секретным словом */
+  async function adminReadSync(){
+    if(!(typeof ADMIN !== 'undefined' && ADMIN && typeof ADMIN_CRED !== 'undefined' && ADMIN_CRED)) return;
+    if(typeof adminDataCall !== 'function') return;
+    const res = await adminDataCall('admin_read', {});
+    if(!res || !res.ok) return;
+    if(Array.isArray(res.reports)) state.reports = res.reports;
+    if(res.role === 'owner'){
+      if(Array.isArray(res.logs)) state.logs = res.logs;
+      if(res.staff && typeof res.staff === 'object') state.staff = res.staff;
+      state.ownerLast = res.ownerLast || null;
+    }
+    uiDirty = true;
+    try{ refreshUI(); }catch(e){}
+  }
+  setInterval(adminReadSync, 15000);
+  window.__adminReadNow = adminReadSync;
+
   /* ---------- вход в аккаунт: подтянуть данные аккаунта с сервера ---------- */
   async function loadAccount(key){
     if(ready){ try{ await flush(); }catch(e){} }
