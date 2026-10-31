@@ -828,6 +828,27 @@ function sellerAccKey(l){
     setInterval(function(){ if(!window.__msgSrv) msgDetect(); }, 20000);
   }
 
+  /* ---------- свои сделки: сервер отдаёт их по токену (публичного чтения копий сделок нет) ---------- */
+  async function ownDealsFetch(){
+    let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
+    if(!tok) return null;
+    try{
+      const r = await fetch(ACCOUNT_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: CFG.key }, body: JSON.stringify({ action:'own_deals', token: tok }) });
+      const j = await r.json();
+      return (j && j.ok && Array.isArray(j.deals)) ? j.deals : null;
+    }catch(e){ return null; }
+  }
+  /* обновляем свои сделки раз в 15 секунд: сюда приходят ходы собеседника (их пишет сервер) */
+  async function ownDealsSync(){
+    if(!ready) return;
+    const acc = accName(); if(!acc) return;
+    const d = await ownDealsFetch(); if(!d) return;
+    const k = 'a:'+acc+':deals';
+    if(base[k] === J(d)) return;
+    applyRemote(k, d, false);
+  }
+  setInterval(ownDealsSync, 15000);
+
   /* ---------- вход в аккаунт: подтянуть данные аккаунта с сервера ---------- */
   async function loadAccount(key){
     if(ready){ try{ await flush(); }catch(e){} }
@@ -837,11 +858,13 @@ function sellerAccKey(l){
     if(!res.ok){ failStatus(res); return false; }
     const got = {}; (res.data||[]).forEach(r=>{ got[r.key] = r.value; });
     if(!state.dealsByAcc) state.dealsByAcc = {}; if(!state.txByAcc) state.txByAcc = {}; if(!state.notifByAcc) state.notifByAcc = {};
-    const d = got['a:'+key+':deals'], t = got['a:'+key+':tx'], n = got['a:'+key+':notif'];
+    const d = await ownDealsFetch(key), t = got['a:'+key+':tx'], n = got['a:'+key+':notif'];
+    if(!Array.isArray(d)) return false;
     state.dealsByAcc[key] = Array.isArray(d) ? d : [];
     if(window.__msgSrv && Array.isArray(d)) d.forEach(function(x){ if(x){ x.messages = Array.isArray(x.messages) ? x.messages : []; markLegacy(x.messages); } }); state.txByAcc[key] = Array.isArray(t) ? t : []; state.notifByAcc[key] = Array.isArray(n) ? n : [];
     if(!Array.isArray(d)) delete state.dealsByAcc[key]; if(!Array.isArray(t)) delete state.txByAcc[key]; if(!Array.isArray(n)) delete state.notifByAcc[key];
     keys.forEach(k=>{ base[k] = (k in got && got[k] !== null) ? J(got[k]) : undefined; if(base[k] === undefined) delete base[k]; });
+    base['a:'+key+':deals'] = J(d);
     window.__syncRemoteMe = got['a:'+key+':me']; window.__syncRemoteMy = got['a:'+key+':my']; window.__syncRemoteFav = got['a:'+key+':fav'];
     return true;
   }
