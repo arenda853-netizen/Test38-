@@ -613,7 +613,13 @@ function sellerAccKey(l){
         out.push.apply(out, j.rows || []);
       }catch(e){ return null; }
     }
-    /* чужие старые чаты никто, кроме участников сделки, не читает (админы тоже): эти id пропускаем */
+    /* чужие старые чаты: читает только админ и только по сделке в споре (сервер проверяет статус «заморожена») */
+    if(others.length){
+      if(!(typeof ADMIN !== 'undefined' && ADMIN && typeof ADMIN_CRED !== 'undefined' && ADMIN_CRED)) return out;
+      const res = await adminDataCall('msgs_admin_list', { deal_ids: others, since: since || '' });
+      if(!res || !res.ok) return null;
+      out.push.apply(out, res.rows || []);
+    }
     return out;
   }
   /* получение: сделки с серверной частью — с сервера (по курсору), остальные — как раньше */
