@@ -99,7 +99,7 @@ function pageChat(id){
   <div class="chat-page" style="padding-bottom:calc(${d.status==='frozen'?(can('disputes')?150:104):68}px + env(safe-area-inset-bottom,0px));">
     ${topbar({back:true,
       title: `<span onclick="goToSeller('${d.counterparty.id}')" style="cursor:pointer;">${d.counterparty.name}</span>`,
-      subtitle: peerTyping(d) ? 'печатает…' : (peerOnline(d) ? 'в сети' : 'не в сети'),
+      subtitle: peerTyping(d) ? 'печатает…' : (peerOnline(d) ? '<span style="color:#33e39a;font-size:12px;line-height:1;">●</span>' : ''),
       right:`<div class="row gap8">
         <div class="icon-btn" onclick="openModal(commentsSheet('${d.id}'))" title="Комментарии">${icon('note',17)}</div>
         <div class="icon-btn" onclick="openModal(dealActionsSheet('${d.id}'))">${icon('filter',17)}</div>
