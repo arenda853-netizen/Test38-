@@ -107,7 +107,40 @@ function renderCatalogList(){
     listEl.innerHTML = `<div class="empty-state">${icon('search',36,'var(--text-faint)')}<div class="h2">Ничего не нашлось</div><div class="muted" style="font-size:13px;">Попробуйте изменить фильтры или запрос</div></div>`;
     return;
   }
-  listEl.innerHTML = items.map(listingCardHtml).join('');
+  /* подгрузка по прокрутке: сначала первая порция, остальные — когда пользователь доходит до конца списка */
+  const key = JSON.stringify(catalogFilters);
+  const keep = key === catKey ? Math.max(catShown, CAT_PAGE) : CAT_PAGE;
+  catKey = key;
+  catShown = Math.min(keep, items.length);
+  catRest = items.slice(catShown);
+  listEl.innerHTML = items.slice(0, catShown).map(listingCardHtml).join('')
+    + (catRest.length ? '<div id="catalog-more" style="height:1px;"></div>' : '');
+  catObserve();
+}
+const CAT_PAGE = 24;
+let catRest = [], catIO = null, catKey = '', catShown = 0;
+function catStop(){ if(catIO){ catIO.disconnect(); catIO = null; } }
+function catLoadMore(){
+  const listEl = document.getElementById('catalog-list');
+  const sentinel = document.getElementById('catalog-more');
+  if(!listEl || !sentinel) return;
+  if(!catRest.length){ catStop(); sentinel.remove(); return; }
+  const chunk = catRest.splice(0, CAT_PAGE);
+  catShown += chunk.length;
+  sentinel.insertAdjacentHTML('beforebegin', chunk.map(listingCardHtml).join(''));
+  if(!catRest.length){ catStop(); sentinel.remove(); return; }
+  /* если после добавления метка всё ещё рядом с экраном — подгружаем дальше, иначе наблюдатель не сработает снова */
+  if(sentinel.getBoundingClientRect().top < window.innerHeight + 600) catLoadMore();
+}
+function catObserve(){
+  catStop();
+  const sentinel = document.getElementById('catalog-more');
+  if(!sentinel) return;
+  if(!('IntersectionObserver' in window)){ while(catRest.length) catLoadMore(); return; }
+  catIO = new IntersectionObserver(function(entries){
+    if(entries.some(function(e){ return e.isIntersecting; })) catLoadMore();
+  }, { rootMargin: '600px 0px' });
+  catIO.observe(sentinel);
 }
 function filterSheet(){
   return `<div class="h2" style="margin-bottom:14px;">Сортировка</div>
