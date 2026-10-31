@@ -211,10 +211,12 @@ function pageAdminVerify(){
       <div class="muted" style="font-size:13px;line-height:1.5;margin-bottom:12px;">Введите ID игрока (например DP123456789) или ник. Галочка действует 6 месяцев. Документы сюда не загружаются.</div>
       <input class="input" id="verifyTarget" type="text" autocomplete="off" placeholder="ID или ник" style="margin-bottom:10px;">
       <div class="row gap8">
-        <button class="btn btn-primary" style="flex:1;" onclick="verifyAction(true)">Выдать галочку</button>
+        <button class="btn btn-primary" style="flex:1;" onclick="verifyAction(true)">Выдать</button>
         <button class="btn btn-ghost" style="flex:1;" onclick="verifyAction(false)">Снять</button>
+        <button class="btn btn-ghost" style="flex:1;" onclick="verifyListShow()">Кто проверен</button>
       </div>
     </div>
+    <div id="verifyList" style="margin-top:14px;"></div>
   </div>`;
 }
 function verifyAction(on){
@@ -228,5 +230,33 @@ function verifyAction(on){
     }
     if(el) el.value = '';
     toast(on ? 'Галочка выдана' : 'Галочка снята', 'success');
+    if(!on) verifyListShow();
+  });
+}
+/* список проверенных: берётся с сервера, у каждого кнопка «Снять» */
+function verifyListShow(){
+  const box = document.getElementById('verifyList');
+  if(!isOwner() || !ADMIN_CRED){ toast('Войдите как владелец','error'); return; }
+  if(box) box.innerHTML = '<div class="muted" style="font-size:13px;">Загрузка…</div>';
+  adminDataCall('verify_list', {}).then(function(res){
+    if(!box) return;
+    if(!res || !res.ok){ box.innerHTML = '<div class="muted" style="font-size:13px;">Не удалось загрузить список</div>'; return; }
+    const items = res.items || [];
+    if(!items.length){ box.innerHTML = '<div class="muted" style="font-size:13px;">Проверенных игроков нет</div>'; return; }
+    box.innerHTML = '<div class="muted" style="font-size:12px;margin-bottom:8px;">Проверенных: ' + items.length + '</div>' +
+      items.map(function(x){
+        const until = x.until ? new Date(x.until).toLocaleDateString('ru-RU') : '—';
+        return '<div class="row between" style="padding:10px 0;border-bottom:1px solid var(--border);">' +
+          '<div style="min-width:0;"><div style="font-weight:600;font-size:14px;">' + esc(x.name) + '</div>' +
+          '<div class="muted" style="font-size:12px;">' + esc(x.nick) + ' · до ' + until + '</div></div>' +
+          '<button class="btn btn-ghost" style="flex:0 0 auto;padding:6px 12px;" onclick="verifyRemoveNick(\'' + esc(x.nick) + '\')">Снять</button></div>';
+      }).join('');
+  });
+}
+function verifyRemoveNick(nick){
+  adminDataCall('verify_set', { target: nick, value: false }).then(function(res){
+    if(!res || !res.ok){ toast('Не удалось снять галочку','error'); return; }
+    toast('Галочка снята','success');
+    verifyListShow();
   });
 }
