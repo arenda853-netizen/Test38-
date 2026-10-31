@@ -488,9 +488,9 @@ function sellerAccKey(l){
   }
   async function msgDetect(){
     if(window.__msgSrv) return true;
-    const res = await httpT('obmenka_msgs', 'GET', '?select=id&limit=1');
-    if(res.ok && Array.isArray(res.data)){ msgEnable(); return true; }
-    return false;
+    let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
+    if(!tok) return false;
+    msgEnable(); return true;
   }
   /* что нужно отправить в таблицу: новые сообщения, созданные в этой сессии */
   function msgCollect(){
@@ -520,6 +520,20 @@ function sellerAccKey(l){
     }catch(e){ return null; }
   }
   window.srvDeal = srvDeal;   /* для статуса сделки из других файлов */
+  /* сообщение без серверной сделки: игрок пишет через account-state (только своя сделка), админ — через admin-data */
+  async function legacySend(row){
+    if(row.adm){
+      const res = await adminDataCall('msg_admin_send', { deal_id: row.deal_id, text: row.text, mid: row.id, kind: row.kind, confirm: !!row.confirm });
+      return (res && res.ok) ? res.created_at : null;
+    }
+    let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
+    if(!tok) return null;
+    try{
+      const r = await fetch(ACCOUNT_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: CFG.key }, body: JSON.stringify({ action:'msg_send', token: tok, deal_id: row.deal_id, text: row.text, mid: row.id, kind: row.kind, confirm: !!row.confirm }) });
+      const j = await r.json();
+      return (j && j.ok) ? j.created_at : null;
+    }catch(e){ return null; }
+  }
   let msgBusy = false, msgAgain = false, msgFailUntil = 0;
   async function msgPush(){
     if(!window.__msgSrv || !state) return;
@@ -543,9 +557,12 @@ function sellerAccKey(l){
       const rows = legacy.map(function(it){
         return { id: it.m.mid, deal_id: it.d.id, sender: it.m.adm ? ('adm:' + it.m.adm) : me, kind: it.m.from === 'sys' ? 'sys' : 'msg', text: String(it.m.text||''), adm: it.m.adm || null, confirm: !!it.m.confirm };
       });
-      const res = await httpT('obmenka_msgs', 'POST', '?on_conflict=id', rows, { Prefer:'resolution=ignore-duplicates,return=representation' });
-      if(!res.ok){ msgFailUntil = Date.now() + 4000; return; }
-      const got = {}; (Array.isArray(res.data) ? res.data : []).forEach(function(r){ got[r.id] = r; });
+      const got = {};
+      for(const row of rows){
+        const saved = await legacySend(row);
+        if(!saved){ msgFailUntil = Date.now() + 4000; return; }
+        got[row.id] = { id: row.id, created_at: saved };
+      }
       legacy.forEach(function(it){
         it.m.sent = true;
         const r = got[it.m.mid];
@@ -581,16 +598,26 @@ function sellerAccKey(l){
     }
     return changed;
   }
+  /* старые сообщения: свои сделки читает игрок через account-state, чужие — только админ через admin-data */
   async function oldMsgFetch(ids, since){
-    const out = []; let cur = since || '';
-    for(let g = 0; g < 20; g++){
-      const inList = ids.map(q).map(encodeURIComponent).join(',');
-      const qs = '?select=*&deal_id=in.(' + inList + ')' + (cur ? '&created_at=gte.' + encodeURIComponent(cur) : '') + '&order=created_at.asc&limit=500';
-      const res = await httpT('obmenka_msgs', 'GET', qs);
-      if(!res.ok || !Array.isArray(res.data)) return null;
-      out.push.apply(out, res.data);
-      if(res.data.length < 500) break;
-      cur = res.data[res.data.length - 1].created_at;
+    const out = [];
+    const mine = ids.filter(function(id){ return (state.deals||[]).some(function(x){ return x && x.id === id; }); });
+    const others = ids.filter(function(id){ return mine.indexOf(id) < 0; });
+    if(mine.length){
+      let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
+      if(!tok) return null;
+      try{
+        const r = await fetch(ACCOUNT_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: CFG.key }, body: JSON.stringify({ action:'msgs_list', token: tok, deal_ids: mine, since: since || '' }) });
+        const j = await r.json();
+        if(!j || !j.ok) return null;
+        out.push.apply(out, j.rows || []);
+      }catch(e){ return null; }
+    }
+    if(others.length){
+      if(!(typeof ADMIN !== 'undefined' && ADMIN && typeof ADMIN_CRED !== 'undefined' && ADMIN_CRED)) return out;
+      const res = await adminDataCall('msgs_admin_list', { deal_ids: others, since: since || '' });
+      if(!res || !res.ok) return null;
+      out.push.apply(out, res.rows || []);
     }
     return out;
   }
