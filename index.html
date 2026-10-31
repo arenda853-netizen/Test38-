@@ -45,13 +45,23 @@
   var btn = document.getElementById('net-retry');
   var msg = document.getElementById('net-msg');
   var blocked = ['shell', 'toast-root', 'modal-root'];
-  var state = null, busy = false;
+  var state = null, busy = false, wasOff = false;
+  /* старое локальное сохранение игрока больше не нужно: данные только на сервере */
+  try{ localStorage.removeItem('obmenka_state_v4'); }catch(e){}
+  function clearScreen(){
+    var shell = document.getElementById('shell');
+    if(shell) shell.style.visibility = 'hidden';
+    ['app', 'bottomNav', 'toast-root', 'modal-root'].forEach(function(id){
+      var el = document.getElementById(id); if(el) el.innerHTML = '';
+    });
+  }
   function show(ok){
     if(ok === state) return;
     state = ok;
     gate.style.display = ok ? 'none' : 'flex';
     blocked.forEach(function(id){ var el = document.getElementById(id); if(el) el.inert = !ok; });
-    if(!ok) btn.focus();
+    if(!ok){ wasOff = true; clearScreen(); btn.focus(); }
+    else if(wasOff){ location.reload(); }   /* связь вернулась: страница грузится заново с сервера */
   }
   function probe(){
     if(busy) return;
