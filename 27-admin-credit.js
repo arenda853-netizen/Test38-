@@ -63,9 +63,7 @@
     W.pageAdmin = function(){
       const html = _pageAdmin.apply(this, arguments);
       if(!(typeof isOwner === 'function' && isOwner())) return html;
-      const card = `<div class="card" style="padding:12px 14px;margin-bottom:14px;cursor:pointer;" onclick="openModal(adminCreditSheet())">
-        <div style="font-size:14px;font-weight:700;">Начислить деньги</div>
-        <div class="faint" style="font-size:11.5px;margin-top:2px;">По ID игрока. Только для главного админа</div></div>`;
+      const card = adminMenuRow('tag','Начислить деньги','По ID игрока. Только для главного админа','openModal(adminCreditSheet())');
       return String(html).replace('<div class="page">', '<div class="page">' + card);
     };
   }
@@ -139,9 +137,7 @@
     W.pageAdmin = function(){
       let html = _pageAdmin2.apply(this, arguments);
       if(W.canSeeIp() && !W.__IPMAP){
-        const card = `<div class="card" style="padding:12px 14px;margin-bottom:14px;cursor:pointer;" onclick="openModal(ipUnlockSheet())">
-          <div style="font-size:14px;font-weight:700;">Показать IP и устройства</div>
-          <div class="faint" style="font-size:11.5px;margin-top:2px;">Нужен ваш пароль. Открывается только на этой вкладке</div></div>`;
+        const card = adminMenuRow('eye','Показать IP и устройства','Нужен ваш пароль. Открывается только на этой вкладке','openModal(ipUnlockSheet())');
         html = String(html).replace('<div class="page">', '<div class="page">' + card);
       }
       return html;
@@ -159,12 +155,9 @@
       if(!page) return;
       if(document.body.innerText.indexOf('Админ-панель') < 0) return;
       if(page.innerText.indexOf('Начислить деньги') >= 0) return;
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.setAttribute('style', 'padding:12px 14px;margin-bottom:14px;cursor:pointer;');
-      card.innerHTML = '<div style="font-size:14px;font-weight:700;">Начислить деньги</div><div class="faint" style="font-size:11.5px;margin-top:2px;">По ID игрока. Только для главного админа</div>';
-      card.onclick = function(){ openModal(adminCreditSheet()); };
-      page.insertBefore(card, page.firstChild);
+      const wrap = document.createElement('div');
+      wrap.innerHTML = adminMenuRow('tag','Начислить деньги','По ID игрока. Только для главного админа','openModal(adminCreditSheet())');
+      page.insertBefore(wrap.firstElementChild, page.firstChild);
     }catch(e){}
   }, 800);
 })();

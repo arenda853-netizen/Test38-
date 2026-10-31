@@ -122,12 +122,10 @@
       if(!page) return;
       if(document.body.innerText.indexOf('Админ-панель') < 0) return;
       if(document.getElementById('susCard')) return;
-      const card = document.createElement('div');
+      const wrap = document.createElement('div');
+      wrap.innerHTML = adminMenuRow('shield','Подозрительные активности','Заморозки, история денег, разморозка','openSuspiciousLogin()');
+      const card = wrap.firstElementChild;
       card.id = 'susCard';
-      card.className = 'card';
-      card.setAttribute('style', 'padding:12px 14px;margin-bottom:14px;cursor:pointer;');
-      card.innerHTML = '<div style="font-size:14px;font-weight:700;">Подозрительные активности</div><div class="faint" style="font-size:11.5px;margin-top:2px;">Заморозки, история денег, разморозка</div>';
-      card.onclick = function(){ openSuspiciousLogin(); };
       page.insertBefore(card, page.firstChild);
     }catch(e){}
   }, 800);
