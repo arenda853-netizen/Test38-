@@ -102,16 +102,8 @@
     ADMIN_CRED = { nick: acc, pass: pass };
     ADMIN = { role: role, staffId: staffId, key: key, via: 'bot' };
     persistAdminSess();
-    try{
-      const info = { ts:Date.now(), device:deviceLabel(), ip:(state.me && state.me.ip) || '' };
-      if(role === 'owner'){
-        const o = Object.assign({}, state.ownerLast || {}, info);
-        o.acc = state.accKey;
-        try{ const u = supportUidMe(); if(u) o.uid = u; }catch(e){}
-        o.accs = (Array.isArray(o.accs) ? o.accs : []).filter(v=>v !== state.accKey).concat([state.accKey]).slice(-5);
-        state.ownerLast = o;
-      } else if(state.staff[staffId]) state.staff[staffId].last = info;
-    }catch(e){}
+    /* время входа и устройство записывает сервер (admin-data seen_set); IP браузер не отправляет */
+    try{ adminDataCall('seen_set', { device: deviceLabel() }); }catch(e){}
     logOp('Вход в админ-режим (через Telegram-бота)'); saveState();
     closeModal(); toast('Вход выполнен: ' + ADMIN_ROLES[role].label, 'success'); navigate('/admin');
   };

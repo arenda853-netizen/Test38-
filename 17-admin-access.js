@@ -149,7 +149,6 @@ async function adminLogin(){
   if(!lockAcquire(key)){ toast('Этот доступ уже занят другим сеансом','error'); return; }
   ADMIN = {role: res.role, staffId: staffId, key: key}; persistAdminSess();
   ADMIN_CRED = {nick: nick, pass: pw};
-  try{ const info = {ts:Date.now(), device:deviceLabel(), ip:(state.me&&state.me.ip)||''}; if(res.role==='owner') state.ownerLast = info; else if(state.staff[staffId]) state.staff[staffId].last = info; }catch(e){}
   logOp('Вход в админ-режим'); saveState();
   closeModal(); toast('Вход выполнен: '+ADMIN_ROLES[res.role].label,'success'); navigate('/admin');
 }
@@ -222,24 +221,19 @@ async function grantStaff(){
   if(!pl){ toast('Игрок с таким ID не найден','error'); return; }
   const id = pl.id;
   if(pw.length<30){ toast('Пароль должен быть не короче 30 символов','error'); return; }
-  const h = hashPw(pw);
-  if(h===MASTER_HASH){ toast('Этот пароль использовать нельзя','error'); return; }
-  /* сначала серверная запись: без неё роль не действует на сервере */
+  /* сначала серверная запись: без неё роль не действует на сервере. Пароль хранит только сервер */
   const tgt = String(pl.key || pl.name || '').toLowerCase();
   const srv = await adminCall('admin_grant', { target: tgt, role: staffFormRole, new_pass: pw });
   if(!srv) return;
   ensureStaff();
-  for(const k in state.staff){ if(k!==id && state.staff[k].hash===h){ toast('Такой пароль уже выдан другому','error'); return; } }
-  state.staff[id] = {role:staffFormRole, nick:tgt, hash:h, ts:Date.now(), by:'owner'};
+  state.staff[id] = {role:staffFormRole, nick:tgt, ts:Date.now(), by:'owner'};
+  adminDataCall('staff_put', { id: id, nick: tgt, role: staffFormRole });
   logOp('Выдана роль', id+' → '+ADMIN_ROLES[staffFormRole].label);
   staffFormId=''; staffFormPw='';
   saveState(); toast('Доступ выдан: '+ADMIN_ROLES[staffFormRole].label,'success'); onRoute();
 }
-function makeStaffCode(id){
-  const st = state.staff && state.staff[id]; if(!st) return '';
-  const json = JSON.stringify({i:id, r:st.role, h:st.hash});
-  return 'ADM-' + btoa(unescape(encodeURIComponent(json))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-}
+/* старые коды ADM-… больше не работают: вход идёт через Telegram-бота и секретное слово на сервере */
+function makeStaffCode(id){ return ''; }
 function copyStaffCode(id){
   if(!isOwner()) return;
   const code = makeStaffCode(id); if(!code) return;
@@ -252,18 +246,13 @@ function importStaffCode(text){
   try{
     let b = text.slice(4).replace(/-/g,'+').replace(/_/g,'/'); while(b.length%4) b+='=';
     const o = JSON.parse(decodeURIComponent(escape(atob(b))));
-    if(!o || typeof o.i!=='string' || !/^[A-Za-z0-9_.-]{1,64}$/.test(o.i) || !ADMIN_ROLES[o.r] || o.r==='owner' || !/^[0-9a-f]{64}$/.test(o.h)) return false;
-    if(o.h===MASTER_HASH) return false;
-    ensureStaff();
-    state.staff[o.i] = {role:o.r, hash:o.h, ts:Date.now(), by:'code'};
-    try{ localStorage.setItem('obmenka_admin_unlocked','1'); }catch(e){}
-    saveState();
-    return true;
+    /* старые коды больше не принимаются: доступ выдаёт главный админ через «Выдача админки» */
+    return false;
   }catch(e){ return false; }
 }
 function revokeStaff(id){
   if(!isOwner()) return;
-  ensureStaff(); delete state.staff[id];
+  ensureStaff(); delete state.staff[id]; adminDataCall('staff_del', { id: id });
   logOp('Роль отозвана', id); saveState(); toast('Доступ отозван'); onRoute();
 }
 

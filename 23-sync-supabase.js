@@ -164,7 +164,8 @@ function sellerAccKey(l){
     const rows = {};
     if(!state) return rows;
     GLOBAL_KEYS.forEach(k=>{
-      if(k==='support'){ rows['g:support'] = { news: (state.support && state.support.news) || [] }; return; }  /* переписки поддержки теперь на сервере */
+      /* staff, ownerLast и support пишет только сервер (admin-data): браузер их не отправляет */
+      if(k==='staff' || k==='ownerLast' || k==='support') return;
       if(k==='logs') return; /* журнал пишет сервер (admin-data) */
       if(k==='sellers' || k==='statsHistory') return; /* не отправляется из браузера: локальные данные */
       if(state[k] !== undefined) rows['g:'+k] = state[k];

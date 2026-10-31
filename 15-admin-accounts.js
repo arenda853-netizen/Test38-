@@ -279,14 +279,16 @@ async function accApplyStatus(enc, kind){
   toast(st==='banned'?'Аккаунт забанен':(st==='frozen'?'Аккаунт заморожен':'Ограничение снято'), st==='active'?'success':'error');
   renderAccList(); enforceAccStatus();
 }
-function accNewStaffPw(id){
+async function accNewStaffPw(id){
   if(!isOwner()) return;
   ensureStaff(); const st = state.staff[id]; if(!st) return;
-  let pw, h, tries = 0;
-  do{ pw = accGenPw(36); h = hashPw(pw); tries++; }while((h===MASTER_HASH || Object.keys(state.staff).some(k=>k!==id && state.staff[k].hash===h)) && tries<10);
-  st.hash = h; st.ts = Date.now();
-  logOp('Новый пароль админу', id, 'access'); saveState();
-  accShowNewPw('Новый пароль для '+esc(id), pw, `<div class="faint" style="font-size:11.5px;margin-bottom:10px;line-height:1.5;">Старый пароль больше не подходит. Чтобы вход заработал, сотруднику нужно отправить в чат новый код (кнопка «Код» в «Выдача админки»).</div>`);
+  const pw = accGenPw(36);
+  /* пароль хранит только сервер: выдача с тем же ролём задаёт новый пароль */
+  const srv = await adminCall('admin_grant', { target: st.nick || id, role: st.role, new_pass: pw });
+  if(!srv) return;
+  st.ts = Date.now(); saveState();
+  logOp('Новый пароль админу', id, 'access');
+  accShowNewPw('Новый пароль для '+esc(id), pw, `<div class="faint" style="font-size:11.5px;margin-bottom:10px;line-height:1.5;">Старый пароль больше не подходит. Передайте сотруднику новый пароль.</div>`);
   renderAccList();
 }
 
