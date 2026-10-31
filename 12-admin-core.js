@@ -84,6 +84,7 @@ function pageAdmin(){
     isOwner() ? adminMenuRow('clock','Логи', 'Игроки: что нажимали, по чатам и играм. Действия админов', "navigate('/admin/logs')") : '',
     can('logs') ? adminMenuRow('eye','Активность игроков', 'Что открывали и нажимали: по разделам и дням', "navigate('/admin/activity')") : '',
     isOwner() ? adminMenuRow('lock','Данные аккаунтов', 'Пароли, ID, IP и устройства. Только для вас', "navigate('/admin/accounts')") : '',
+    isOwner() ? adminMenuRow('shield','Верификация','Выдать или снять галочку по ID',"navigate('/admin/verify')") : '',
     can('vip') ? adminMenuRow('bolt','Выдать VIP статус', 'Поиск игрока по ID → его товар → выдать VIP', "navigate('/admin/vip')") : '',
     can('disputes') ? adminMenuRow('shield','Жалобы на отзывы', 'Удалить отзыв или отклонить жалобу', "navigate('/admin/reports')") : '',
     can('hold') ? adminMenuRow('clock','Отключить задержку денег', 'По ID игрока: деньги с продаж сразу на баланс', "navigate('/admin/hold')") : '',
