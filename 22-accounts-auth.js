@@ -207,6 +207,7 @@ window.submitLocalLogin = async function(){
     if(d.error === 'locked'){ openAuthModal('login', 'Слишком много неверных попыток. Подождите ' + (d.minutes || 10) + ' мин.', nick); return; }
     if(!d.ok){ openAuthModal('login', 'Нет связи с сервером [код ' + (d.status || '—') + ']. Проверьте интернет и попробуйте ещё раз.', nick); return; }
     const rec = d.rec || {};
+    window.__authRec = { key: authKey(nick), rec: d.rec || null };
     authSaveToken(d.token);
     if(rec.status === 'banned'){
       const key = authKey(nick);
@@ -251,6 +252,7 @@ window.submitLocalLogin = async function(){
       }
       const key = String(d.acc || '').trim().toLowerCase();
       if(!key) return;
+      window.__authRec = { key: key, rec: d.rec || null };
       /* не ждём полной инициализации синхронизации (она занимает ~7 с): вход поднимаем сразу */
       try{ if(window.__SYNC && window.__SYNC.fetchAccount) await window.__SYNC.fetchAccount(key); }catch(e){}
       await window.applyLocalUser((d.rec && d.rec.display) || key);

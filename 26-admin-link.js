@@ -8,7 +8,8 @@
 (function(){
   'use strict';
   const W = window;
-  const URL_ = SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/admin_links';
+  /* роль админа проверяет сервер по пропуску игрока: таблица admin_links закрыта для чтения */
+  const LOOKUP_URL = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/acc-lookup';
   let link = null, linkAcc = '', busy = false;
 
   async function check(force){
@@ -17,10 +18,11 @@
     busy = true;
     try{
       const acc = state.accKey;
-      const res = await fetch(URL_ + '?select=acc,role,staff_id&acc=eq.' + encodeURIComponent(acc), { cache:'no-store', headers:{ apikey: SUPABASE_PUBLISHABLE_KEY } });
+      const tok = (function(){ try{ return localStorage.getItem('dp_token') || ''; }catch(e){ return ''; } })();
+      const res = await fetch(LOOKUP_URL, { method:'POST', cache:'no-store', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ action:'my_role', token: tok }) });
       if(!res.ok) return link;                                 /* нет связи: ничего не меняем */
-      const rows = await res.json();
-      const row = Array.isArray(rows) ? rows[0] : null;
+      const dd = await res.json();
+      const row = dd && dd.role ? { acc: acc, role: dd.role } : null;
       if(state.accKey !== acc) return link;                    /* за время запроса сменили аккаунт */
       const was = !!link;
       link = row && ADMIN_ROLES[row.role] ? row : null;

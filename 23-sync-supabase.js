@@ -859,6 +859,7 @@ function sellerAccKey(l){
   async function adminReadSync(){
     if(!(typeof ADMIN !== 'undefined' && ADMIN && typeof ADMIN_CRED !== 'undefined' && ADMIN_CRED)) return;
     if(typeof adminDataCall !== 'function') return;
+    loadAdminAccounts();
     const res = await adminDataCall('admin_read', {});
     if(!res || !res.ok) return;
     if(Array.isArray(res.reports)) state.reports = res.reports;
@@ -870,6 +871,23 @@ function sellerAccKey(l){
     }
     uiDirty = true;
     try{ refreshUI(); }catch(e){}
+  }
+  /* список аккаунтов для админ-панели: сервер отдаёт его только при входе админа по паролю (acc-lookup) */
+  const ACC_LOOKUP_URL = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/acc-lookup';
+  async function loadAdminAccounts(){
+    if(!(typeof ADMIN_CRED !== 'undefined' && ADMIN_CRED)) return;
+    try{
+      const r = await fetch(ACC_LOOKUP_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+        body: JSON.stringify({ action:'admin_accounts', admin_nick: ADMIN_CRED.nick, admin_pass: ADMIN_CRED.pass }) });
+      const d = await r.json();
+      if(!d || !d.ok || !Array.isArray(d.accounts)) return;
+      const db = readAccDb();
+      Object.keys(db).forEach(function(k){ delete db[k]; });
+      d.accounts.forEach(function(a){
+        db[a.nick] = { nickname:a.nickname, display:a.display, uid:a.uid, status:a.status, createdAt:a.createdAt, lastLogin:a.lastLogin, restrictions:a.restrictions };
+      });
+      uiDirty = true;
+    }catch(e){}
   }
   setInterval(adminReadSync, 15000);
   window.__adminReadNow = adminReadSync;
@@ -924,14 +942,25 @@ function sellerAccKey(l){
     });
   }
   /* читает аккаунт прямо с сервера. { ok:false } — нет связи; { ok:true, rec:null } — такого ника точно нет */
+  /* своя запись аккаунта: из ответа входа/восстановления; если её там нет — спрашиваем сервер по пропуску.
+     публичного чтения acc:* больше нет, чужие записи браузер не получает */
+  async function meRecord(key){
+    let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
+    if(!tok) return null;
+    try{
+      const r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ action:'me', token: tok }) });
+      const d = await r.json();
+      if(d && d.ok && d.token){ try{ localStorage.setItem('dp_token', d.token); }catch(e){} }
+      if(d && d.ok && String(d.acc || '').trim().toLowerCase() === key) return d.rec || null;
+    }catch(e){}
+    return null;
+  }
   async function fetchAccount(key){
     key = String(key||'').trim().toLowerCase();
-    const res = await http('GET', accFilter(key));
-    if(!res.ok){ failStatus(res); return { ok:false, rec:null }; }
-    const row = (res.data||[])[0];
-    const rec = (row && isObj(row.value)) ? row.value : null;
-    if(rec){ try{ const db = readAccDb(); db[key] = rec; }catch(e){} base['acc:'+key] = J(rec); }
-    return { ok:true, rec: rec, tomb: !!(row && !rec) };
+    let rec = (window.__authRec && window.__authRec.key === key) ? window.__authRec.rec : null;
+    if(!rec) rec = await meRecord(key);
+    if(rec){ try{ readAccDb()[key] = rec; }catch(e){} base['acc:'+key] = J(rec); }
+    return { ok:true, rec: rec || null, tomb: false };
   }
   /* занять ник: 'ok' | 'taken' | 'error'. Запись «только если такой строки ещё нет» делает сервер, гонка двух устройств невозможна */
   async function claimAccount(key, rec){
