@@ -23,7 +23,7 @@
     /* админка: ничего выделять нельзя */
     'body.dp-admin #app, body.dp-admin #modal-root, body.dp-admin #app *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}' +
     'body.dp-admin img{-webkit-user-drag:none;pointer-events:auto;}' +
-    '#dpShield{position:fixed;inset:0;z-index:2147483647;background:#0F1115;color:#fff;display:none;align-items:center;justify-content:center;text-align:center;padding:24px;font:600 15px/1.5 system-ui,sans-serif;}' +
+    '#dpShield{position:fixed;inset:0;z-index:2147483647;background:#FFFFFF;color:#14161C;display:none;align-items:center;justify-content:center;text-align:center;padding:24px;font:600 15px/1.5 system-ui,sans-serif;}' +
     '#dpShield.on{display:flex;}' +
     '@media print{body.dp-admin *{visibility:hidden !important;}}';
   document.head.appendChild(css);

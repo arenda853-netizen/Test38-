@@ -116,7 +116,7 @@ function pageHome(){
   const popular = state.listings.filter(l=>!l.sold && (!l.moderation || l.moderation==='approved')).sort((a,b)=>b.views-a.views).slice(0,8);
   const fresh = state.listings.filter(l=>!l.sold && (!l.moderation || l.moderation==='approved')).sort((a,b)=>b.createdAt-a.createdAt).slice(0,6);
   return `
-  ${topbar({right:`<div class="icon-btn" style="position:relative;" onclick="openNotifs()">${icon('bell',18)}${unreadNotifs()>0?`<span id="notifBadge" style="position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;border-radius:9px;background:var(--danger);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;">${Math.min(unreadNotifs(),99)}</span>`:''}</div>`})}
+  ${topbar({right:`<div class="icon-btn bell-btn" style="position:relative;" onclick="openNotifs()">${icon('bell',20)}${unreadNotifs()>0?`<span id="notifBadge" style="position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;border-radius:9px;background:var(--danger);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;">${Math.min(unreadNotifs(),99)}</span>`:''}</div>`})}
   <div class="page">
     <div style="margin-bottom:18px;">
       <div class="h1">Dropplay</div>

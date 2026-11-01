@@ -2,7 +2,7 @@
 (function(){
   try{
     const icon = document.getElementById('appIcon').href;
-    const m = {name:'Dropplay', short_name:'Dropplay', description:'Безопасные P2P-сделки по цифровым товарам', start_url:'./', scope:'./', display:'standalone', orientation:'portrait', background_color:'#0F1115', theme_color:'#0F1115',
+    const m = {name:'Dropplay', short_name:'Dropplay', description:'Безопасные P2P-сделки по цифровым товарам', start_url:'./', scope:'./', display:'standalone', orientation:'portrait', background_color:'#FFFFFF', theme_color:'#FFFFFF',
       icons:[{src:icon, sizes:'192x192', type:'image/jpeg', purpose:'any'}]};
     const l = document.createElement('link'); l.rel = 'manifest';
     l.href = URL.createObjectURL(new Blob([JSON.stringify(m)], {type:'application/manifest+json'}));

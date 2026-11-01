@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-<meta name="theme-color" content="#0F1115">
+<meta name="theme-color" content="#FFFFFF">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Dropplay">
@@ -16,20 +16,20 @@
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style>
-#net-gate{position:fixed;inset:0;z-index:2147483647;display:none;align-items:center;justify-content:center;padding:24px;background:radial-gradient(circle at 50% 30%,#6C5CE733 0%,transparent 60%),#0F1115;font-family:Manrope,system-ui,sans-serif;color:#EDEEF2;}
-#net-gate .ng-card{width:100%;max-width:360px;text-align:center;padding:36px 26px 28px;border-radius:24px;background:rgba(23,26,33,.85);border:1px solid #2A2F3A;box-shadow:0 24px 60px rgba(0,0,0,.45);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
+#net-gate{position:fixed;inset:0;z-index:2147483647;display:none;align-items:center;justify-content:center;padding:24px;background:radial-gradient(circle at 50% 30%,#6C5CE71f 0%,transparent 60%),#FFFFFF;font-family:Manrope,system-ui,sans-serif;color:#14161C;}
+#net-gate .ng-card{width:100%;max-width:360px;text-align:center;padding:36px 26px 28px;border-radius:24px;background:rgba(255,255,255,.92);border:1px solid #D9DDE7;box-shadow:0 24px 60px rgba(20,22,28,.14);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
 #net-gate .ng-icon{position:relative;width:84px;height:84px;margin:0 auto 22px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#6C5CE71f;color:#A99BFF;}
 #net-gate .ng-icon:before{content:"";position:absolute;inset:-8px;border-radius:50%;border:2px solid #6C5CE766;animation:ngPulse 2s ease-out infinite;}
 #net-gate .ng-title{font-family:Unbounded,Manrope,sans-serif;font-weight:700;font-size:20px;line-height:1.25;margin-bottom:10px;}
-#net-gate .ng-text{font-size:14.5px;line-height:1.55;color:#9BA1AF;margin-bottom:26px;}
+#net-gate .ng-text{font-size:14.5px;line-height:1.55;color:#5B6270;margin-bottom:26px;}
 #net-gate .ng-btn{width:100%;height:50px;border:0;border-radius:14px;font:700 15px Manrope,sans-serif;color:#fff;background:linear-gradient(135deg,#6C5CE7,#8A7CFF);box-shadow:0 10px 26px #6C5CE748;cursor:pointer;}
 #net-gate .ng-btn:disabled{opacity:.6;cursor:default;}
-#net-gate .ng-msg{min-height:18px;margin-top:12px;font-size:12.5px;color:#5C6270;}
+#net-gate .ng-msg{min-height:18px;margin-top:12px;font-size:12.5px;color:#8A90A0;}
 @keyframes ngPulse{0%{transform:scale(.9);opacity:.9}100%{transform:scale(1.35);opacity:0}}
 @media (prefers-reduced-motion: reduce){#net-gate .ng-icon:before{animation:none;}}
-#boot-veil{position:fixed;inset:0;z-index:2147483600;display:none;align-items:center;justify-content:center;background:rgba(15,17,21,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
+#boot-veil{position:fixed;inset:0;z-index:2147483600;display:none;align-items:center;justify-content:center;background:rgba(255,255,255,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
 #boot-veil.on{display:flex;}
-#boot-veil .bv-spin{width:44px;height:44px;border-radius:50%;border:3px solid #2A2F3A;border-top-color:#6C5CE7;animation:bvSpin .9s linear infinite;}
+#boot-veil .bv-spin{width:44px;height:44px;border-radius:50%;border:3px solid #D9DDE7;border-top-color:#6C5CE7;animation:bvSpin .9s linear infinite;}
 @keyframes bvSpin{to{transform:rotate(360deg);}}
 @media (prefers-reduced-motion: reduce){#boot-veil .bv-spin{animation-duration:3s;}}
 </style>
