@@ -245,7 +245,8 @@ window.submitLocalLogin = async function(){
       if(d && d.ok && d.token) authSaveToken(d.token);   /* пропуск обновляется при каждом входе */
       if(!d || !d.ok){
         /* пропуск недействителен: только тогда стираем; при сбое связи оставляем */
-        if(d && d.error === 'bad_token'){ try{ localStorage.removeItem('dp_token'); }catch(e){} }
+        /* стираем только тот токен, который отправляли: другая вкладка могла уже обновить его */
+        if(d && d.error === 'bad_token'){ try{ if(localStorage.getItem('dp_token') === tok) localStorage.removeItem('dp_token'); }catch(e){} }
         return;
       }
       const key = String(d.acc || '').trim().toLowerCase();
@@ -258,7 +259,8 @@ window.submitLocalLogin = async function(){
   window.addEventListener('DOMContentLoaded', restoreSession);
 })();
 
-/* выход или вход в другой вкладке: эта вкладка перечитывает страницу и тоже выходит */
+/* выход в другой вкладке (токен стёрт): эта вкладка перечитывает страницу и тоже выходит.
+   обновление токена при каждом входе сюда не относится — перезагрузки не нужны */
 window.addEventListener('storage', function(e){
-  if(e.key === 'dp_token') location.reload();
+  if(e.key === 'dp_token' && !e.newValue) location.reload();
 });
