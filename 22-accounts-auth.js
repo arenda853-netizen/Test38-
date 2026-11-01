@@ -254,7 +254,11 @@ window.submitLocalLogin = async function(){
       /* не ждём полной инициализации синхронизации (она занимает ~7 с): вход поднимаем сразу */
       try{ if(window.__SYNC && window.__SYNC.fetchAccount) await window.__SYNC.fetchAccount(key); }catch(e){}
       await window.applyLocalUser((d.rec && d.rec.display) || key);
-    }catch(e){}
+    }catch(e){
+    }finally{
+      /* восстановление закончилось (успех или нет): убираем размытый экран загрузки */
+      if(typeof window.__hideBootVeil === 'function') window.__hideBootVeil();
+    }
   }
   window.addEventListener('DOMContentLoaded', restoreSession);
 })();
