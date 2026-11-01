@@ -180,6 +180,19 @@ function afterRender(path, params){
 }
 window.addEventListener('hashchange', onRoute);
 window.addEventListener('DOMContentLoaded', ()=>{ loadState(); adminRestore(); onRoute(); startFrozenTicker(); });
+/* переключатель темы (белая / чёрно-синяя) — есть на каждой странице в верхней панели */
+function themeBtnHtml(){
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  return `<div class="icon-btn theme-btn" title="Тема" onclick="toggleTheme()">${icon(dark ? 'sun' : 'moon', 18)}</div>`;
+}
+window.toggleTheme = function(){
+  const dark = document.documentElement.getAttribute('data-theme') !== 'dark';
+  if(dark) document.documentElement.setAttribute('data-theme', 'dark');
+  else document.documentElement.removeAttribute('data-theme');
+  try{ localStorage.setItem('dp_theme', dark ? 'dark' : 'light'); }catch(e){}
+  const m = document.querySelector('meta[name="theme-color"]'); if(m) m.content = dark ? '#070B16' : '#FFFFFF';
+  document.querySelectorAll('.theme-btn').forEach(el => { el.innerHTML = icon(dark ? 'sun' : 'moon', 18); });
+};
 function topbar(opts){
   opts = opts || {};
   return `<div class="topbar ${opts.solid?'solid':''}">
@@ -190,6 +203,7 @@ function topbar(opts){
       ${opts.subtitle ? `<div class="faint" style="font-size:12px;">${opts.subtitle}</div>` : ''}
     </div>
     ${opts.right || ''}
+    ${themeBtnHtml()}
   </div>`;
 }
 function starsHtml(rating){
