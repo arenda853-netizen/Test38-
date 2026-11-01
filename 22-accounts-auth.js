@@ -251,7 +251,7 @@ window.submitLocalLogin = async function(){
       }
       const key = String(d.acc || '').trim().toLowerCase();
       if(!key) return;
-      if(window.__SYNC && window.__SYNC.whenReady){ try{ await window.__SYNC.whenReady(10000); }catch(e){} }
+      /* не ждём полной инициализации синхронизации (она занимает ~7 с): вход поднимаем сразу */
       try{ if(window.__SYNC && window.__SYNC.fetchAccount) await window.__SYNC.fetchAccount(key); }catch(e){}
       await window.applyLocalUser((d.rec && d.rec.display) || key);
     }catch(e){}
