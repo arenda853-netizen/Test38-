@@ -101,8 +101,9 @@
   }
   function updatePill(){
     let el = document.getElementById('syncPill');
-    let show = false; try{ show = localStorage.getItem('obmenka_admin_unlocked') === '1'; }catch(e){}
-    if(!show){ if(el) el.remove(); return; }
+    /* индикатор «общая база онлайн» отключён: показа нет ни у кого */
+    if(el) el.remove();
+    return;
     if(!el){
       el = document.createElement('div'); el.id = 'syncPill';
       el.style.cssText = 'position:fixed;left:8px;bottom:76px;z-index:9999;font:600 10.5px/1 system-ui,sans-serif;padding:6px 9px;border-radius:99px;background:rgba(20,20,28,.88);color:#fff;border:1px solid rgba(255,255,255,.15);cursor:pointer;';

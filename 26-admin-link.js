@@ -10,8 +10,6 @@
   const W = window;
   const URL_ = SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/admin_links';
   let link = null, linkAcc = '', busy = false;
-  /* индикатор «общая база онлайн» снова виден всем (его показ включается этим флагом) */
-  try{ localStorage.setItem('obmenka_admin_unlocked','1'); }catch(e){}
 
   async function check(force){
     if(!state || !state.authed || !state.accKey){ link = null; linkAcc = ''; return link; }
