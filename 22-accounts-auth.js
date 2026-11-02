@@ -119,7 +119,8 @@ function authModalContent(mode, error, nick){
     <input id="authNickInput" class="input" placeholder="Ник" value="${authEsc(nick||'')}" maxlength="${isLogin?40:20}" style="margin-bottom:${isLogin?'10':'4'}px;width:100%;" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" ${filter} onkeydown="${onEnter}">
     ${isLogin ? '' : `<div class="faint" style="font-size:11px;margin-bottom:10px;padding-left:2px;">Только английские буквы, цифры и _ · 3–20 символов</div>`}
     <input id="authPassInput" type="password" class="input" placeholder="Пароль" style="margin-bottom:16px;width:100%;" autocomplete="${isLogin ? 'current-password' : 'new-password'}" onkeydown="${onEnter}">
-    ${isLogin ? '' : `<label style="display:flex;gap:10px;align-items:flex-start;font-size:12.5px;line-height:1.45;color:var(--text-dim);margin:0 0 14px;cursor:pointer;"><input type="checkbox" id="authAgree" ${window.__agreeChecked ? 'checked' : ''} onchange="window.__agreeChecked=this.checked" style="margin-top:2px;width:16px;height:16px;flex-shrink:0;"><span>Я принимаю <span style="color:var(--accent);font-weight:600;" onclick="event.preventDefault();rememberRegNick();openDoc('agreement', backToRegister)">соглашение</span>, <span style="color:var(--accent);font-weight:600;" onclick="event.preventDefault();rememberRegNick();openDoc('rules', backToRegister)">правила</span> и <span style="color:var(--accent);font-weight:600;" onclick="event.preventDefault();rememberRegNick();openDoc('cookies', backToRegister)">политику cookie</span></span></label>`}
+    ${isLogin ? '' : `<label style="display:flex;gap:10px;align-items:flex-start;font-size:12.5px;line-height:1.45;color:var(--text-dim);margin:0 0 14px;cursor:pointer;"><input type="checkbox" id="authAgree" ${window.__agreeChecked ? 'checked' : ''} onchange="window.__agreeChecked=this.checked" style="margin-top:2px;width:16px;height:16px;flex-shrink:0;"><span>Я принимаю <span style="color:var(--accent);font-weight:600;" onclick="event.preventDefault();rememberRegNick();openDoc('agreement', backToRegister)">соглашение</span>, <span style="color:var(--accent);font-weight:600;" onclick="event.preventDefault();rememberRegNick();openDoc('rules', backToRegister)">правила</span> и <span style="color:var(--accent);font-weight:600;" onclick="event.preventDefault();rememberRegNick();openDoc('cookies', backToRegister)">политику cookie</span></span></label>
+      <label style="display:flex;gap:10px;align-items:flex-start;font-size:12.5px;line-height:1.45;color:var(--text-dim);margin:0 0 14px;cursor:pointer;"><input type="checkbox" id="authPdAgree" ${window.__pdChecked ? 'checked' : ''} onchange="window.__pdChecked=this.checked" style="margin-top:2px;width:16px;height:16px;flex-shrink:0;"><span>Я даю согласие на обработку моих персональных данных (ник, данные сделок и сообщений, данные устройства) в целях, указанных в <span style="color:var(--accent);font-weight:600;" onclick="event.preventDefault();rememberRegNick();openDoc('privacy', backToRegister)">политике конфиденциальности</span></span></label>`}
     <button id="authSubmitBtn" class="btn btn-primary btn-block" style="margin-bottom:10px;" onclick="${isLogin ? 'submitLocalLogin()' : 'submitLocalRegister()'}">
       ${isLogin ? 'Войти' : 'Зарегистрироваться'}
     </button>
@@ -177,7 +178,9 @@ window.submitLocalRegister = async function(){
   if(pass.length < 4){ openAuthModal('register', 'Пароль должен быть не короче 4 символов.', nick); return; }
   if(pass.length > 64){ openAuthModal('register', 'Пароль слишком длинный (максимум 64 символа).', nick); return; }
   const agreeEl = document.getElementById('authAgree');
+  const pdEl = document.getElementById('authPdAgree');
   if(agreeEl && !agreeEl.checked){ openAuthModal('register', 'Чтобы зарегистрироваться, примите соглашение, правила и политику cookie.', nick); return; }
+  if(pdEl && !pdEl.checked){ openAuthModal('register', 'Чтобы зарегистрироваться, дайте согласие на обработку персональных данных.', nick); return; }
   authSetBusy(true);
   try{
     const d = await authCall('register', nick, pass);
@@ -187,7 +190,8 @@ window.submitLocalRegister = async function(){
     if(!d.ok){ openAuthModal('register', 'Нет связи с сервером [код ' + (d.status || '—') + ']. Проверьте интернет и попробуйте ещё раз.', nick); return; }
     authSaveToken(d.token);
     if(typeof window.markAgreed === 'function') window.markAgreed();
-    window.__agreeChecked = false;
+    if(typeof window.markPdConsent === 'function') window.markPdConsent();
+    window.__agreeChecked = false; window.__pdChecked = false;
     try{ if(window.__SYNC && window.__SYNC.fetchAccount) await window.__SYNC.fetchAccount(authKey(nick)); }catch(e){}
     const done = await window.applyLocalUser(nick);
     if(!done){ openAuthModal('login', 'Аккаунт создан, но войти не удалось. Попробуйте войти вручную.', nick); return; }
