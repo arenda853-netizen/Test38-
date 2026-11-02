@@ -18,7 +18,7 @@
   function lsSet(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
   function accKey(){ return (typeof state !== 'undefined' && state && state.accKey) || 'guest'; }
   function learnKey(){ return 'dp_learn_' + accKey(); }
-  function agreed(){ return lsGet(AGREE_KEY) === AGREE_VER; }
+  function agreed(){ return lsGet(AGREE_KEY) === AGREE_VER && lsGet('dp_pd_consent') === 'v1'; }
 
   ICONS.info = '<circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/>';
 
@@ -109,34 +109,54 @@
   W.markAgreed = function(){ lsSet(AGREE_KEY, AGREE_VER); };
   W.markPdConsent = function(){ lsSet('dp_pd_consent', 'v1'); };
   W.acceptAgreement = function(){ W.markAgreed(); closeModal(); };
-  /* окно без закрытия по фону: пока соглашение не принято, дальше не пустим */
-  W.openAgreeGate = function(){
-    if(agreed()) return;
-    const root = document.getElementById('modal-root');
-    if(!root) return;
-    root.innerHTML = `<div class="modal-overlay">
-      <div class="modal-sheet"><div class="sheet-handle"></div>
-        <div style="padding:6px 2px 4px;">
-          <div class="h2" style="margin-bottom:8px;">Обновление соглашения</div>
-          <div class="muted" style="font-size:13px;line-height:1.55;margin-bottom:16px;">Чтобы продолжить пользоваться площадкой, примите пользовательское соглашение, правила и политику cookie.
-            <span style="color:var(--accent);font-weight:600;cursor:pointer;" onclick="openDoc('agreement', openAgreeGate)">Соглашение</span>,
-            <span style="color:var(--accent);font-weight:600;cursor:pointer;" onclick="openDoc('rules', openAgreeGate)">правила</span>,
-            <span style="color:var(--accent);font-weight:600;cursor:pointer;" onclick="openDoc('cookies', openAgreeGate)">cookie</span>.</div>
-          <button class="btn btn-primary btn-block" style="margin-bottom:10px;" onclick="acceptAgreement()">Принимаю</button>
-          <button class="btn btn-ghost btn-block" onclick="logoutAccount()">Выйти из аккаунта</button>
-        </div>
-      </div></div>`;
+  /* ---------- ОБЯЗАТЕЛЬНЫЙ ЭКРАН: без принятия соглашения и согласия на обработку данных в сайт не пускаем ---------- */
+  W.__gateAgree = false; W.__gatePd = false;
+  function gateMainHtml(){
+    const link = (id, t) => `<span style="color:var(--accent);font-weight:600;cursor:pointer;" onclick="showAgreeGate('doc','${id}')">${t}</span>`;
+    return `<div class="h2" style="margin-bottom:8px;">Добро пожаловать в Dropplay</div>
+      <div class="muted" style="font-size:13px;line-height:1.55;margin-bottom:18px;">Чтобы пользоваться площадкой, примите документы и дайте согласие на обработку персональных данных. Без этого вход на сайт недоступен.</div>
+      <label style="display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.5;color:var(--text);margin:0 0 12px;cursor:pointer;">
+        <input type="checkbox" ${W.__gateAgree ? 'checked' : ''} onchange="gateCheck('a', this.checked)" style="margin-top:3px;width:18px;height:18px;flex-shrink:0;">
+        <span>Я принимаю ${link('agreement','пользовательское соглашение')} и ${link('rules','правила площадки')}</span></label>
+      <label style="display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.5;color:var(--text);margin:0 0 14px;cursor:pointer;">
+        <input type="checkbox" ${W.__gatePd ? 'checked' : ''} onchange="gateCheck('p', this.checked)" style="margin-top:3px;width:18px;height:18px;flex-shrink:0;">
+        <span>Я даю согласие на обработку персональных данных по ${link('privacy','политике конфиденциальности')}</span></label>
+      <div class="faint" style="font-size:12px;line-height:1.5;margin-bottom:16px;">Политика cookie: ${link('cookies','подробнее')}. Согласие на cookie не требуется: сайт использует только необходимое хранилище браузера.</div>
+      <button id="gateGo" class="btn btn-primary btn-block" style="margin-bottom:10px;" ${(W.__gateAgree && W.__gatePd) ? '' : 'disabled'} onclick="acceptGate()">Принимаю и продолжить</button>
+      ${(typeof state !== 'undefined' && state && state.authed) ? '<button class="btn btn-ghost btn-block" onclick="logoutAccount()">Выйти из аккаунта</button>' : ''}`;
+  }
+  function gateDocHtml(id){
+    const d = DOCS[id];
+    return `<div class="h2" style="margin-bottom:12px;">${d.title}</div>
+      <div style="font-size:13.5px;line-height:1.6;color:var(--text);">${d.items.map(p => `<p style="margin:0 0 10px;">${p}</p>`).join('')}</div>
+      <button class="btn btn-ghost btn-block" style="margin-top:12px;" onclick="showAgreeGate('main')">Назад</button>`;
+  }
+  W.showAgreeGate = function(view, docId){
+    if(agreed()){ const old = document.getElementById('agreeGate'); if(old) old.remove(); return; }
+    let el = document.getElementById('agreeGate');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'agreeGate';
+      el.style.cssText = 'position:fixed;inset:0;z-index:200;background:var(--bg);overflow-y:auto;';
+      document.body.appendChild(el);
+    }
+    const inner = view === 'doc' ? gateDocHtml(docId) : gateMainHtml();
+    el.innerHTML = `<div style="width:100%;max-width:480px;margin:0 auto;min-height:100%;box-sizing:border-box;padding:28px 18px calc(28px + env(safe-area-inset-bottom,0px));">${inner}</div>`;
   };
-  /* после входа или восстановления сессии: если соглашение ещё не принято — показываем */
-  (function(){
-    const _apply = W.applyLocalUser;
-    if(typeof _apply !== 'function') return;
-    W.applyLocalUser = async function(){
-      const r = await _apply.apply(this, arguments);
-      if(r && !agreed()) setTimeout(function(){ W.openAgreeGate(); }, 300);
-      return r;
-    };
-  })();
+  W.gateCheck = function(which, on){
+    if(which === 'a') W.__gateAgree = !!on; else W.__gatePd = !!on;
+    const b = document.getElementById('gateGo');
+    if(b) b.disabled = !(W.__gateAgree && W.__gatePd);
+  };
+  W.acceptGate = function(){
+    if(!(W.__gateAgree && W.__gatePd)) return;
+    W.markAgreed(); W.markPdConsent();
+    const el = document.getElementById('agreeGate'); if(el) el.remove();
+  };
+  W.openAgreeGate = function(){ W.showAgreeGate('main'); };
+  /* экран показываем сразу при открытии сайта, пока не приняты соглашение и согласие */
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ W.showAgreeGate('main'); });
+  else W.showAgreeGate('main');
 
   /* ---------- cookie-баннер ---------- */
   function cookieBanner(){
