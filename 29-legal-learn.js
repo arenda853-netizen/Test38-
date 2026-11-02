@@ -129,10 +129,10 @@
     return `<div class="h2" style="margin-bottom:8px;">Добро пожаловать в Dropplay</div>
       <div class="muted" style="font-size:13px;line-height:1.55;margin-bottom:18px;">Чтобы пользоваться площадкой, примите документы и дайте согласие на обработку персональных данных. Без этого вход на сайт недоступен.</div>
       <label style="display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.5;color:var(--text);margin:0 0 12px;cursor:pointer;">
-        <input type="checkbox" ${W.__gateAgree ? 'checked' : ''} onchange="gateCheck('a', this.checked)" style="margin-top:3px;width:18px;height:18px;flex-shrink:0;">
+        <input type="checkbox" ${W.__gateAgree ? 'checked' : ''} onchange="gateCheck('a', this.checked)" style="margin-top:3px;width:18px;height:18px;flex-shrink:0;accent-color:var(--accent);">
         <span>Я принимаю ${link('agreement','пользовательское соглашение')} и ${link('rules','правила площадки')}</span></label>
       <label style="display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.5;color:var(--text);margin:0 0 14px;cursor:pointer;">
-        <input type="checkbox" ${W.__gatePd ? 'checked' : ''} onchange="gateCheck('p', this.checked)" style="margin-top:3px;width:18px;height:18px;flex-shrink:0;">
+        <input type="checkbox" ${W.__gatePd ? 'checked' : ''} onchange="gateCheck('p', this.checked)" style="margin-top:3px;width:18px;height:18px;flex-shrink:0;accent-color:var(--accent);">
         <span>Я даю согласие на обработку персональных данных по ${link('privacy','политике конфиденциальности')}</span></label>
       <div class="faint" style="font-size:12px;line-height:1.5;margin-bottom:16px;">Политика cookie: ${link('cookies','подробнее')}. Согласие на cookie не требуется: сайт использует только необходимое хранилище браузера.</div>
       <button id="gateGo" class="btn btn-primary btn-block" style="margin-bottom:10px;" ${(W.__gateAgree && W.__gatePd) ? '' : 'disabled'} onclick="acceptGate()">Принимаю и продолжить</button>
