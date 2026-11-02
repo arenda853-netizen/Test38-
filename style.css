@@ -145,3 +145,48 @@ input,textarea,select{font-family:inherit;}
 .chat-msgs>.msg-row:first-child{margin-top:auto;}
 .bubble{overflow-wrap:anywhere;}
 .msg-row.sys .bubble.confirm{background:var(--accent-2-soft);color:var(--accent-2);font-weight:700;font-size:12.5px;padding:8px 14px;border-radius:12px;}
+
+/* ==========================================
+   ГЛУБИНА И ОБЪЁМ: мягкие углы у мелких элементов, тени, блик сверху
+   Отдельный блок: чтобы откатить, достаточно удалить его целиком.
+   ========================================== */
+.badge{border-radius:10px;}
+.progress-track,.frost-track{border-radius:6px;}
+.progress-fill,.frost-fill{border-radius:6px;}
+.stat-bar{border-radius:8px 8px 4px 4px;}
+.upload-tile,.img-preview{border-radius:16px;}
+.online-dot{border-radius:50%;}
+.sheet-handle{border-radius:6px;}
+.lcard-img{border-radius:18px;}
+.listing-thumb{border-radius:16px;}
+.review-card{border-radius:16px;}
+.bubble{border-radius:18px;}
+
+/* кнопки: верхний блик, мягкая тень снизу, лёгкое "вдавливание" при нажатии */
+.btn-primary,.btn-accent2{position:relative;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -2px 0 rgba(0,0,0,.12),0 10px 22px -10px rgba(108,92,231,.7);}
+.btn-accent2{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -2px 0 rgba(0,0,0,.1),0 10px 22px -10px rgba(0,168,142,.6);}
+.btn-primary::after,.btn-accent2::after{content:'';position:absolute;left:0;right:0;top:0;height:50%;background:linear-gradient(180deg,rgba(255,255,255,.18),transparent);pointer-events:none;border-radius:14px 14px 0 0;}
+.btn-ghost{box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 2px 6px -3px rgba(20,22,28,.18);}
+[data-theme="dark"] .btn-ghost{box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 2px 8px -3px rgba(0,0,0,.5);}
+.btn:active{transform:translateY(1px) scale(.975);}
+.btn-primary:active,.btn-accent2:active{box-shadow:inset 0 2px 4px rgba(0,0,0,.2),0 4px 10px -8px rgba(108,92,231,.6);}
+
+/* карточки и плитки: тень + тонкий светлый край сверху */
+.card,.listing{box-shadow:0 1px 0 rgba(255,255,255,.6) inset,0 10px 24px -16px rgba(20,22,28,.22);}
+[data-theme="dark"] .card,[data-theme="dark"] .listing{box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 14px 28px -18px rgba(0,0,0,.7);}
+.cat-tile{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 18px -12px rgba(20,22,28,.35);}
+[data-theme="dark"] .cat-tile{box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 10px 20px -12px rgba(0,0,0,.7);}
+
+/* иконки и нижнее меню: объём без тяжёлых эффектов */
+.icon-btn{box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 2px 6px -3px rgba(20,22,28,.2);}
+[data-theme="dark"] .icon-btn{box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 2px 8px -3px rgba(0,0,0,.6);}
+.icon-btn:active{transform:translateY(1px);}
+.bottom-nav{box-shadow:0 -8px 24px -16px rgba(20,22,28,.25);}
+[data-theme="dark"] .bottom-nav{box-shadow:0 -10px 28px -16px rgba(0,0,0,.8);}
+.nav-sell{box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 12px 24px -8px rgba(108,92,231,.75);}
+.nav-sell:active{transform:translateY(1px);}
+
+/* у людей, которые отключили анимации в системе, эффекты нажатия не двигают элементы */
+@media (prefers-reduced-motion: reduce){
+  .btn:active,.icon-btn:active,.nav-sell:active{transform:none;}
+}
