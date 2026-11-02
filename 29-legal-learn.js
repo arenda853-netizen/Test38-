@@ -13,6 +13,7 @@
   const AGREE_KEY = 'dp_agree';     /* принятая версия соглашения (на этом устройстве) */
   const AGREE_VER = 'v1';
   const COOKIE_KEY = 'dp_cookies';
+  const CONSENT_URL = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/consent-log';
 
   function lsGet(k){ try{ return localStorage.getItem(k) || ''; }catch(e){ return ''; } }
   function lsSet(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
@@ -71,7 +72,7 @@
       '<b>Передача за пределы Кыргызской Республики.</b> Если ваши данные будут переданы за пределы Кыргызской Республики, мы заранее сообщим вам об этом.',
       '<b>Сроки.</b> Данные хранятся, пока аккаунт активен, и дольше, если это нужно для разбора споров или по закону.',
       '<b>Ваши права.</b> Вы вправе получить доступ к своим данным и участвовать в определении правил доступа к ним (ст. 37 Цифрового кодекса), потребовать их уточнения или удаления и отозвать согласие. Запрос направляется в поддержку площадки.',
-      '<b>Согласие.</b> Отмечая галочку при регистрации, вы даёте письменное или электронное согласие на обработку указанных данных в указанных целях. Согласие можно отозвать, при этом аккаунт может быть закрыт.',
+      '<b>Согласие.</b> Отмечая галочки на экране входа, вы даёте согласие на обработку указанных данных в указанных целях. Согласие можно отозвать, при этом аккаунт может быть закрыт. При принятии мы сохраняем дату и время, IP-адрес, сведения о браузере и версию документов, привязывая их к аккаунту.',
       '<b>Оператор данных</b> (владелец персональных записей по Цифровому кодексу КР) определяет цели и способы обработки.',
       OPERATOR + ' Контакт для запросов: ____________________ (e-mail или ссылка на поддержку).'
     ]}
@@ -111,6 +112,18 @@
   W.acceptAgreement = function(){ W.markAgreed(); closeModal(); };
   /* ---------- ОБЯЗАТЕЛЬНЫЙ ЭКРАН: без принятия соглашения и согласия на обработку данных в сайт не пускаем ---------- */
   W.__gateAgree = false; W.__gatePd = false;
+  let gateForced = false;
+  function accKeyNow(){ return (typeof state !== 'undefined' && state && state.authed && state.accKey) ? state.accKey : ''; }
+  function accFlag(k){ return 'dp_consent_' + k; }
+  /* отправляет запись о принятии на сервер для аккаунта; при успехе ставит отметку на устройстве */
+  function sendConsent(key, onOk){
+    const tok = lsGet('dp_token');
+    if(!tok || !key) return;
+    fetch(CONSENT_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ action:'set', token: tok, agree_ver: AGREE_VER, pd_ver: AGREE_VER }) })
+      .then(function(r){ return r.json(); })
+      .then(function(d){ if(d && d.ok){ lsSet(accFlag(key), AGREE_VER); if(typeof onOk === 'function') onOk(); } })
+      .catch(function(){});
+  }
   function gateMainHtml(){
     const link = (id, t) => `<span style="color:var(--accent);font-weight:600;cursor:pointer;" onclick="showAgreeGate('doc','${id}')">${t}</span>`;
     return `<div class="h2" style="margin-bottom:8px;">Добро пожаловать в Dropplay</div>
@@ -131,8 +144,9 @@
       <div style="font-size:13.5px;line-height:1.6;color:var(--text);">${d.items.map(p => `<p style="margin:0 0 10px;">${p}</p>`).join('')}</div>
       <button class="btn btn-ghost btn-block" style="margin-top:12px;" onclick="showAgreeGate('main')">Назад</button>`;
   }
-  W.showAgreeGate = function(view, docId){
-    if(agreed()){ const old = document.getElementById('agreeGate'); if(old) old.remove(); return; }
+  W.showAgreeGate = function(view, docId, force){
+    if(force) gateForced = true;
+    if(!gateForced && agreed()){ const old = document.getElementById('agreeGate'); if(old) old.remove(); return; }
     let el = document.getElementById('agreeGate');
     if(!el){
       el = document.createElement('div');
@@ -151,8 +165,32 @@
   W.acceptGate = function(){
     if(!(W.__gateAgree && W.__gatePd)) return;
     W.markAgreed(); W.markPdConsent();
+    gateForced = false;
     const el = document.getElementById('agreeGate'); if(el) el.remove();
+    const key = accKeyNow();
+    if(key){ sendConsent(key); }                      /* вошли: пишем на аккаунт сразу */
+    else { lsSet('dp_consent_pending', '1'); }        /* ещё не вошли: запишем на аккаунт при входе или регистрации */
   };
+  /* после входа, регистрации или восстановления сессии: привязываем согласие к аккаунту */
+  (function(){
+    const _apply = W.applyLocalUser;
+    if(typeof _apply !== 'function') return;
+    W.applyLocalUser = async function(){
+      const r = await _apply.apply(this, arguments);
+      try{
+        const key = accKeyNow();
+        if(r && key){
+          if(lsGet('dp_consent_pending') === '1'){
+            sendConsent(key, function(){ lsSet('dp_consent_pending', ''); });
+          } else if(lsGet(accFlag(key)) !== AGREE_VER && agreed()){
+            /* это аккаунт, у которого на этом устройстве не записано согласие: просим принять */
+            setTimeout(function(){ W.showAgreeGate('main', null, true); }, 300);
+          }
+        }
+      }catch(e){}
+      return r;
+    };
+  })();
   W.openAgreeGate = function(){ W.showAgreeGate('main'); };
   /* экран показываем сразу при открытии сайта, пока не приняты соглашение и согласие */
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ W.showAgreeGate('main'); });
