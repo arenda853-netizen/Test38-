@@ -233,3 +233,7 @@ input,textarea,select{font-family:inherit;}
 .btn, .icon-btn, .cat-tile, .lcard, .nav-item{transition:transform .12s ease, box-shadow .12s ease, filter .12s ease;}
 .btn:active, .icon-btn:active, .cat-tile:active, .lcard:active, .bottom-nav button:active{transform:scale(.96);}
 :root:not([data-theme="dark"]) .cat-tile:active{transform:scale(.96);}
+
+/* ВЫКЛЮЧЕННАЯ КНОПКА (например, вход заблокирован): не реагирует и не нажимается */
+.btn:disabled, .btn[disabled]{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none;}
+.btn:disabled:active, .btn[disabled]:active{transform:none;}

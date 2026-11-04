@@ -94,7 +94,52 @@ function authKey(n){ return String(n||'').trim().toLowerCase(); }
 function authSetBusy(on){
   __authBusy = !!on;
   const b = document.getElementById('authSubmitBtn');
-  if(b){ b.disabled = !!on; b.style.opacity = on ? '.6' : ''; }
+  if(b){
+    const locked = authLockLeft(document.getElementById('authNickInput') ? document.getElementById('authNickInput').value : '') > 0;
+    b.disabled = !!on || locked;
+    b.style.opacity = (on || locked) ? '.6' : '';
+  }
+}
+/* блокировка входа по нику: сервер решает сам, здесь только не даём нажимать и отправлять запросы */
+function authLockKey(nick){ return String(nick || '').trim().toLowerCase(); }
+function authLockLeft(nick){
+  const k = authLockKey(nick);
+  if(!k) return 0;
+  window.__authLocks = window.__authLocks || {};
+  let st = 0;
+  try{ st = Number(localStorage.getItem('dp_auth_lock_' + k)) || 0; }catch(e){}
+  const until = Math.max(window.__authLocks[k] || 0, st);
+  return until > Date.now() ? until - Date.now() : 0;
+}
+function authSetLock(nick, minutes){
+  const k = authLockKey(nick);
+  if(!k) return;
+  window.__authLocks = window.__authLocks || {};
+  const until = minutes > 0 ? Date.now() + minutes * 60000 : 0;
+  window.__authLocks[k] = until;
+  try{ if(until) localStorage.setItem('dp_auth_lock_' + k, String(until)); else localStorage.removeItem('dp_auth_lock_' + k); }catch(e){}
+}
+function authFmtLeft(ms){
+  const sec = Math.ceil(ms / 1000);
+  return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+}
+/* пока блокировка активна, кнопка показывает обратный отсчёт и остаётся выключенной */
+function authLockTick(){
+  if(window.__authLockTimer) clearInterval(window.__authLockTimer);
+  window.__authLockTimer = setInterval(function(){
+    const b = document.getElementById('authSubmitBtn');
+    if(!b){ clearInterval(window.__authLockTimer); return; }
+    const nickEl = document.getElementById('authNickInput');
+    const left = authLockLeft(nickEl ? nickEl.value : '');
+    if(left > 0){
+      b.disabled = true; b.style.opacity = '.6';
+      b.textContent = 'Вход заблокирован · ' + authFmtLeft(left);
+    }else{
+      clearInterval(window.__authLockTimer);
+      b.disabled = !!__authBusy; b.style.opacity = '';
+      b.textContent = 'Войти';
+    }
+  }, 1000);
 }
 /* возвращает текст ошибки или '' если ник годится для РЕГИСТРАЦИИ */
 function authNickError(nick){
@@ -119,8 +164,8 @@ function authModalContent(mode, error, nick){
     <input id="authNickInput" class="input" placeholder="Ник" value="${authEsc(nick||'')}" maxlength="${isLogin?40:20}" style="margin-bottom:${isLogin?'10':'4'}px;width:100%;" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" ${filter} onkeydown="${onEnter}">
     ${isLogin ? '' : `<div class="faint" style="font-size:11px;margin-bottom:10px;padding-left:2px;">Только английские буквы, цифры и _ · 3–20 символов</div>`}
     <input id="authPassInput" type="password" class="input" placeholder="Пароль" style="margin-bottom:16px;width:100%;" autocomplete="${isLogin ? 'current-password' : 'new-password'}" onkeydown="${onEnter}">
-    <button id="authSubmitBtn" class="btn btn-primary btn-block" style="margin-bottom:10px;" onclick="${isLogin ? 'submitLocalLogin()' : 'submitLocalRegister()'}">
-      ${isLogin ? 'Войти' : 'Зарегистрироваться'}
+    <button id="authSubmitBtn" class="btn btn-primary btn-block" style="margin-bottom:10px;" ${isLogin && authLockLeft(nick) > 0 ? 'disabled' : ''} onclick="${isLogin ? 'submitLocalLogin()' : 'submitLocalRegister()'}">
+      ${isLogin && authLockLeft(nick) > 0 ? 'Вход заблокирован · ' + authFmtLeft(authLockLeft(nick)) : (isLogin ? 'Войти' : 'Зарегистрироваться')}
     </button>
     <button class="btn btn-ghost btn-block" onclick="openAuthModal('${isLogin ? 'register' : 'login'}')">
       ${isLogin ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'}
@@ -136,6 +181,7 @@ window.rememberRegNick = function(){ const el = document.getElementById('authNic
 window.backToRegister = function(){ openAuthModal('register', '', window.__regNick || ''); };
 window.openAuthModal = function(mode, error, nick){
   if(typeof openModal === 'function'){ openModal(authModalContent(mode, error, nick)); }
+  if((mode || 'login') === 'login' && authLockLeft(nick) > 0) authLockTick();
 };
 /* адрес серверной функции входа (файл из шага 1) */
 const AUTH_URL = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/swift-worker';
@@ -203,14 +249,16 @@ window.submitLocalLogin = async function(){
   const nick = nickEl ? nickEl.value.trim() : '';
   const pass = passEl ? passEl.value : '';
   if(!nick || !pass){ openAuthModal('login', 'Введите ник и пароль.', nick); return; }
+  if(authLockLeft(nick) > 0){ authSetBusy(false); authLockTick(); return; }
   authSetBusy(true);
   try{
     const d = await authCall('login', nick, pass);
     if(d.error === 'no_account'){ openAuthModal('login', 'Аккаунта с ником «' + authEsc(nick) + '» нет. Проверьте ник или зарегистрируйтесь.', nick); return; }
     if(d.error === 'bad_pass'){ openAuthModal('login', 'Неверный пароль.', nick); return; }
-    if(d.error === 'locked'){ openAuthModal('login', 'Слишком много неверных попыток. Подождите ' + (d.minutes || 10) + ' мин.', nick); return; }
+    if(d.error === 'locked'){ authSetLock(nick, d.minutes || 10); openAuthModal('login', 'Слишком много неверных попыток. Подождите ' + (d.minutes || 10) + ' мин.', nick); return; }
     if(!d.ok){ openAuthModal('login', 'Нет связи с сервером [код ' + (d.status || '—') + ']. Проверьте интернет и попробуйте ещё раз.', nick); return; }
     const rec = d.rec || {};
+    authSetLock(nick, 0);
     window.__authRec = { key: authKey(nick), rec: d.rec || null };
     authSaveToken(d.token);
     if(rec.status === 'banned'){
