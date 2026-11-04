@@ -119,7 +119,7 @@ function pageHome(){
   ${topbar({right:`<div class="icon-btn bell-btn" style="position:relative;" onclick="openNotifs()">${icon('bell',20)}${unreadNotifs()>0?`<span id="notifBadge" style="position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;border-radius:9px;background:var(--danger);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;">${Math.min(unreadNotifs(),99)}</span>`:''}</div>`})}
   <div class="page">
     <div style="margin-bottom:18px;">
-      <div class="h1">Dropplay</div>
+      <div class="h1">Zyro</div>
       <div class="muted" style="font-size:13px;margin-top:2px;">Безопасные P2P-сделки по цифровым товарам</div>
     </div>
     <form class="search-bar" style="margin-bottom:18px;" onsubmit="event.preventDefault(); const q=document.getElementById('homeSearch').value; navigate('/catalog?q='+encodeURIComponent(q));">
