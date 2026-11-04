@@ -139,11 +139,12 @@ window.openAuthModal = function(mode, error, nick){
 };
 /* адрес серверной функции входа (файл из шага 1) */
 const AUTH_URL = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/swift-worker';
+const LOGIN_GATE_URL = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/login-gate';   /* вход: сначала резерв попытки на сервере */
 /* пароль проверяет и сохраняет только сервер; браузер лишь получает ответ */
 async function authCall(action, nick, pass){
   let r;
   try{
-    r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+    r = await fetch(action === 'login' ? LOGIN_GATE_URL : AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
       body: JSON.stringify({ action: action, nick: nick, pass: pass, device: deviceLabel() }) });
   }catch(e){ return { ok:false, error:'net', status:0 }; }
   let d = {}; try{ d = await r.json(); }catch(e){}
