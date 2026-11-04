@@ -824,7 +824,7 @@ function sellerAccKey(l){
     ready = true; setStatus('ok');
     uiDirty = true; refreshUI();
     schedule(100);                    /* всё, чего нет на сервере, отправляем туда */
-    setInterval(()=>{ if(!document.hidden) pull(); }, 3000);
+    setInterval(()=>{ if(!document.hidden) pull(); }, 5000);
     setInterval(()=>{ if(document.hidden) pull(); }, 20000);
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) pull(); });
     setInterval(()=>{ if(ready){ flush(); } }, 10000);

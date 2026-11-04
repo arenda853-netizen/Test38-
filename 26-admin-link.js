@@ -35,7 +35,7 @@
     }catch(e){} finally{ busy = false; }
     return link;
   }
-  setInterval(function(){ try{ if(!document.hidden) check(false); }catch(e){} }, 4000);
+  setInterval(function(){ try{ if(!document.hidden) check(false); }catch(e){} }, 60000);   /* раз в минуту: проверка идёт на сервер; при возврате на вкладку и при открытии настроек — сразу */
   document.addEventListener('visibilitychange', function(){ if(!document.hidden) check(false); });
 
   /* пункт в настройках — только для привязанного аккаунта (старые способы открытия больше не работают) */
