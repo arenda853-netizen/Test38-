@@ -718,7 +718,9 @@ function sellerAccKey(l){
     finally{ msgPullBusy = false; }
   }
 
-  /* ---------- присутствие на сервере: «в сети» и «печатает» (таблица obmenka_presence) ---------- */
+  /* ---------- присутствие на сервере: «в сети» и «печатает» (функция presence; таблица закрыта для браузера) ---------- */
+  const PRES_URL = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/presence';
+  function presToken(){ try{ return localStorage.getItem('dp_token') || ''; }catch(e){ return ''; } }
   let presHb = 0, presTn = Date.now(), presTy = '', presLastWrite = 0, presLastAcc = null, presLastTyping = 0, presPollBusy = false, presSigKey = '', presPollTick = 0;
   function presFromRow(r, initial){
     const acc = String(r.key || r.acc || '').replace(/^p:/, '');
@@ -729,15 +731,17 @@ function sellerAccKey(l){
     const acc = (state && state.authed) ? accName() : null;
     if(!ready || !acc) return;
     presLastWrite = Date.now(); presLastAcc = acc;
-    const res = await httpT('obmenka_presence', 'POST', '?on_conflict=acc', [{ acc: acc, hb: Date.now(), tn: presTn, ty: presTy, off: false }], { Prefer:'resolution=merge-duplicates,return=representation' });
-    if(res.ok && Array.isArray(res.data) && res.data[0] && res.data[0].updated_at){
-      const sk = Date.parse(res.data[0].updated_at) - Date.now();
-      if(!isNaN(sk) && Math.abs(sk) < 6*3600*1000) window.__presSkew = sk;
-    }
+    const tok = presToken(); if(!tok) return;
+    try{
+      const r = await fetch(PRES_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: CFG.key }, body: JSON.stringify({ action:'beat', token: tok, tn: presTn, ty: presTy, off: false }) });
+      const d = await r.json();
+      if(d && d.ok && d.now){ const sk = d.now - Date.now(); if(Math.abs(sk) < 6*3600*1000) window.__presSkew = sk; }
+    }catch(e){}
   }
   function presOfflineFor(acc){
     if(!ready || !acc) return;
-    try{ fetch(REST + 'obmenka_presence?on_conflict=acc', { method:'POST', keepalive:true, headers:{ apikey: CFG.key, 'Content-Type':'application/json', Prefer:'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify([{ acc: acc, hb: Date.now(), tn: presTn, ty: '', off: true }]) }); }catch(e){}
+    const tok = presToken(); if(!tok) return;
+    try{ fetch(PRES_URL, { method:'POST', keepalive:true, headers:{ 'Content-Type':'application/json', apikey: CFG.key }, body: JSON.stringify({ action:'beat', token: tok, tn: presTn, ty: '', off: true }) }); }catch(e){}
   }
   window.presTyping = function(dealId){
     const n = Date.now(); if(n - presLastTyping < 1500) return;
@@ -773,8 +777,12 @@ function sellerAccKey(l){
     if(peers.length){
       presPollBusy = true;
       try{
-        const res = await httpT('obmenka_presence', 'GET', '?select=acc,hb,tn,ty,off,updated_at&acc=in.(' + peers.map(q).map(encodeURIComponent).join(',') + ')');
-        if(res.ok && Array.isArray(res.data)) res.data.forEach(function(r){ presFromRow(r, false); });
+        const tok = presToken();
+        if(tok){
+          const r = await fetch(PRES_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: CFG.key }, body: JSON.stringify({ action:'peers', token: tok, accs: peers }) });
+          const res = await r.json();
+          if(res && res.ok && Array.isArray(res.rows)) res.rows.forEach(function(row){ presFromRow(row, false); });
+        }
       }catch(e){} finally{ presPollBusy = false; }
     }
     if(inChat && d){
