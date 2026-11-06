@@ -421,7 +421,7 @@
     if(!can('reviews')) return;
     const x = (state.reports||[]).find(r=>r.id===id); if(!x) return;
     if(!ADMIN_CRED){ toast('Войдите в админ-режим, чтобы решить жалобу','error'); return; }
-    fetch(ADMIN_DATA_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+    adminFetch(ADMIN_DATA_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
       body: JSON.stringify({ action:'report_resolve', admin_nick: ADMIN_CRED.nick, admin_pass: ADMIN_CRED.pass, report_id: id, remove: !!remove, again: !!again }) })
       .then(function(r){ return r.json(); }).then(function(res){
         if(!res || !res.ok){

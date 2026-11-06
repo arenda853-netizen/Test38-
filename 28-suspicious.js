@@ -18,7 +18,7 @@
   function canSee(){ return !!(typeof ADMIN !== 'undefined' && ADMIN && (ADMIN.role === 'owner' || ADMIN.role === 'senior')); }
 
   async function call(body){
-    const r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+    const r = await adminFetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
       body: JSON.stringify(Object.assign({ admin_nick: ADMIN_CRED && ADMIN_CRED.nick, admin_pass: ADMIN_CRED && ADMIN_CRED.pass }, body)) });
     let d = {}; try{ d = await r.json(); }catch(e){}
     return { status: r.status, d: d };

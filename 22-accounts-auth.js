@@ -186,6 +186,21 @@ window.openAuthModal = function(mode, error, nick){
 /* адрес серверной функции входа (файл из шага 1) */
 const AUTH_URL = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/swift-worker';
 const LOGIN_GATE_URL = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/login-gate';   /* вход: сначала резерв попытки на сервере */
+const ADMIN_GATE_URL = SUPABASE_URL.replace(/\/$/, '') + '/functions/v1/admin-gate';
+/* админские запросы с паролем идут через журнал админа (сервер записывает каждый вызов); остальные уходят как обычно */
+window.adminFetch = function(url, init){
+  const body = init && init.body;
+  if(typeof body === 'string' && body.indexOf('"admin_pass"') >= 0){
+    const name = ['swift-worker','admin-data','acc-lookup'].find(function(n){ return String(url).endsWith('/' + n); });
+    if(name){
+      try{
+        const obj = JSON.parse(body); obj.target = name;
+        return fetch(ADMIN_GATE_URL, Object.assign({}, init, { body: JSON.stringify(obj) }));
+      }catch(e){}
+    }
+  }
+  return fetch(url, init);
+};
 /* пароль проверяет и сохраняет только сервер; браузер лишь получает ответ */
 async function authCall(action, nick, pass){
   let r;

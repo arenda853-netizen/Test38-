@@ -35,7 +35,7 @@
     if(!label) return say('Напишите причину начисления.');
     const btn = document.getElementById('crBtn'); if(btn) btn.disabled = true;
     try{
-      const r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+      const r = await adminFetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
         body: JSON.stringify({ action:'credit', target: target, amount: amount, label: label, admin_nick: ADMIN_CRED.nick, admin_pass: ADMIN_CRED.pass,
           ref: (window.crypto && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g,'') : (Date.now().toString(36) + Math.random().toString(36).slice(2, 12)) }) });
       let d = {}; try{ d = await r.json(); }catch(e){}
@@ -104,7 +104,7 @@
     if(!nick || !pass) return say('Введите ник и пароль.');
     const btn = document.getElementById('ipBtn'); if(btn) btn.disabled = true;
     try{
-      const r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+      const r = await adminFetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
         body: JSON.stringify({ action:'ipinfo', nick: nick, pass: pass }) });
       let d = {}; try{ d = await r.json(); }catch(e){}
       const map = {

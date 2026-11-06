@@ -252,7 +252,7 @@ function sellerAccKey(l){
         if(val === null || J(val) === base[k]) continue;
         if(typeof ADMIN_CRED === 'undefined' || !ADMIN_CRED) continue;
         try{
-          const r = await fetch(ADMIN_DATA_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: CFG.key }, body: JSON.stringify({ action:'global_set', admin_nick: ADMIN_CRED.nick, admin_pass: ADMIN_CRED.pass, key: k.slice(2), value: val }) });
+          const r = await adminFetch(ADMIN_DATA_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: CFG.key }, body: JSON.stringify({ action:'global_set', admin_nick: ADMIN_CRED.nick, admin_pass: ADMIN_CRED.pass, key: k.slice(2), value: val }) });
           const j = await r.json();
           if(j && j.ok) base[k] = J(val);
         }catch(e){}
@@ -514,7 +514,7 @@ function sellerAccKey(l){
     let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
     if(!tok) return null;
     try{
-      const r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+      const r = await adminFetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
         body: JSON.stringify(Object.assign({ action: action, token: tok }, payload)) });
       const res = await r.json();
       return (res && res.ok) ? res : null;
@@ -635,7 +635,7 @@ function sellerAccKey(l){
     const c = await getAdminMsgCreds();
     if(!c) return null;
     try{
-      const r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+      const r = await adminFetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
         body: JSON.stringify({ action:'deal_msg_admin', escrow: escrowId, after: after, admin_nick: c.nick, admin_pass: c.pass }) });
       const res = await r.json();
       if(res && res.ok) return res;
@@ -885,7 +885,7 @@ function sellerAccKey(l){
   async function loadAdminAccounts(){
     if(!(typeof ADMIN_CRED !== 'undefined' && ADMIN_CRED)) return;
     try{
-      const r = await fetch(ACC_LOOKUP_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+      const r = await adminFetch(ACC_LOOKUP_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
         body: JSON.stringify({ action:'admin_accounts', admin_nick: ADMIN_CRED.nick, admin_pass: ADMIN_CRED.pass }) });
       const d = await r.json();
       if(!d || !d.ok || !Array.isArray(d.accounts)) return;
@@ -956,7 +956,7 @@ function sellerAccKey(l){
     let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
     if(!tok) return null;
     try{
-      const r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ action:'me', token: tok }) });
+      const r = await adminFetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ action:'me', token: tok }) });
       const d = await r.json();
       if(d && d.ok && d.token){ try{ localStorage.setItem('dp_token', d.token); }catch(e){} }
       if(d && d.ok && String(d.acc || '').trim().toLowerCase() === key) return d.rec || null;

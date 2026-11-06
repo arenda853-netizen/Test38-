@@ -152,7 +152,7 @@ async function serverDisputeHold(d){
   let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
   if(!tok){ toast('Войдите в аккаунт заново','error'); return false; }
   try{
-    const r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+    const r = await adminFetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
       body: JSON.stringify({ action:'dispute_hold', token: tok, escrow: d.escrowId }) });
     let res = {}; try{ res = await r.json(); }catch(e){}
     if(res.ok) return true;
@@ -173,7 +173,7 @@ async function serverDealConfirm(d){
   let tok = ''; try{ tok = localStorage.getItem('dp_token') || ''; }catch(e){}
   if(!tok) return;
   try{
-    await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+    await adminFetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
       body: JSON.stringify({ action:'deal_confirm', token: tok, escrow: d.escrowId }) });
   }catch(e){}
 }
@@ -187,7 +187,7 @@ async function serverDispute(d, decision){
   const creds = await askAdminCreds();
   if(!creds) return false;
   try{
-    const r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+    const r = await adminFetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
       body: JSON.stringify({ action:'dispute', escrow: d.escrowId, decision: decision, note: creds.note,
         admin_nick: creds.nick, admin_pass: creds.pass }) });
     let res = {}; try{ res = await r.json(); }catch(e){}
@@ -237,7 +237,7 @@ async function loadDealTimer(d){
   if(!tok) return;
   window.__dealTimerBusy[d.escrowId] = true;
   try{
-    const r = await fetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+    const r = await adminFetch(AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
       body: JSON.stringify({ action:'deal_timer', token: tok, escrow: d.escrowId }) });
     const res = await r.json();
     if(res.ok){

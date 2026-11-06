@@ -198,7 +198,7 @@ function adminSetVip(id, on){
 
 /* ---------- галочка «проверен»: только владелец, по ID или нику ---------- */
 function adminDataCall(action, payload){
-  return fetch(ADMIN_DATA_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+  return adminFetch(ADMIN_DATA_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
     body: JSON.stringify(Object.assign({ action: action, admin_nick: ADMIN_CRED ? ADMIN_CRED.nick : '', admin_pass: ADMIN_CRED ? ADMIN_CRED.pass : '' }, payload)) })
     .then(function(r){ return r.json(); }).catch(function(){ return { ok:false, error:'network' }; });
 }

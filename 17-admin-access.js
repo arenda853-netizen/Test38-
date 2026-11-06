@@ -65,7 +65,7 @@ function logOp(action, details, cat, data){
   try{ actMirrorLog(e); }catch(_){}
   /* запись в общий журнал идёт на сервер: автор и роль ставятся там */
   if(ADMIN_CRED){
-    try{ fetch(ADMIN_DATA_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ action:'log_add', admin_nick: ADMIN_CRED.nick, admin_pass: ADMIN_CRED.pass, entry: {action: action, details: details||'', cat: cat||'', data: data||null} }) }).catch(function(){}); }catch(e2){}
+    try{ adminFetch(ADMIN_DATA_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ action:'log_add', admin_nick: ADMIN_CRED.nick, admin_pass: ADMIN_CRED.pass, entry: {action: action, details: details||'', cat: cat||'', data: data||null} }) }).catch(function(){}); }catch(e2){}
   }
 }
 function listingSnap(l){
@@ -201,7 +201,7 @@ const SRV_ADMIN_ERR = { bad_admin:'Неверный ник или пароль �
 async function adminCall(action, payload, url){
   if(!ADMIN_CRED){ toast('Войдите в админ-панель по секретному слову','error'); return null; }
   try{
-    const r = await fetch(url || AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+    const r = await adminFetch(url || AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
       body: JSON.stringify(Object.assign({ action: action, admin_nick: ADMIN_CRED.nick, admin_pass: ADMIN_CRED.pass }, payload)) });
     const res = await r.json();
     if(res && res.ok) return res;
