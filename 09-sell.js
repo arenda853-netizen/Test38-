@@ -97,7 +97,7 @@ function sellStepForm(){
     </div>
     <div class="row gap8" style="align-items:stretch;margin-bottom:22px;">
       <div style="flex:1;">
-        <input class="input" type="number" min="1" id="sellPrice" placeholder="0" oninput="updateSellPriceCalc()" required>
+        <input class="input" type="number" min="1" id="sellPrice" max="100000" placeholder="0" oninput="updateSellPriceCalc()" required>
         <div class="faint" style="font-size:10.5px;margin-top:5px;padding-left:2px;">Цена для покупателя, ₽</div>
       </div>
       <div style="flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:14px;padding:12px 14px;">
@@ -201,6 +201,10 @@ async function submitSellForm(e){
     toast('Заполните все поля корректно','error');
     return false;
   }
+  if(price > 100000){
+    toast('Цена: от 1 до 100 000 ₽','error');
+    return false;
+  }
   if(sellDraft.images.length < 1){
     toast('Добавьте хотя бы одно фото товара','error');
     return false;
@@ -229,7 +233,7 @@ async function submitSellForm(e){
     res = await r.json();
   }catch(e){ res = null; }
   if(!res || !res.ok){
-    const SELL_ERR = { bad_title:'Название: от 13 до 70 символов', bad_desc:'Описание: от 13 до 600 символов', bad_price:'Цена: от 1 до 10 000 000 ₽', bad_images:'Фото: от 1 до 10 штук', too_many:'Лимит: не больше 30 объявлений в сутки', no_game:'Выберите игру', bad_specs:'Проверьте характеристики', bad_token:'Войдите в аккаунт заново' };
+    const SELL_ERR = { bad_title:'Название: от 13 до 70 символов', bad_desc:'Описание: от 13 до 600 символов', bad_price:'Цена: от 1 до 100 000 ₽', bad_images:'Фото: от 1 до 10 штук', too_many:'Лимит: не больше 30 объявлений в сутки', no_game:'Выберите игру', bad_specs:'Проверьте характеристики', bad_token:'Войдите в аккаунт заново' };
     toast(SELL_ERR[res && res.error] || 'Не удалось отправить объявление, попробуйте ещё раз','error');
     return false;
   }
