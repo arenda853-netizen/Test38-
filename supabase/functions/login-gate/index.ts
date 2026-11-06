@@ -1,6 +1,6 @@
 // @ts-nocheck
 /* Вход и регистрация игроков. Вход: резерв попытки ДО проверки пароля (счётчик gate:<ник> в базе).
-   Регистрация: пароль не короче 10 символов, обязательно буквы и цифры; иначе отказ до создания аккаунта.
+   Регистрация: ник начинается с буквы, цифры только в конце; пароль не короче 10 символов, буквы и цифры.
    Пароль проверяет swift-worker. Блокировка привязана к нику, а не к устройству. */
 const SB = Deno.env.get("SUPABASE_URL");
 const KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -27,6 +27,10 @@ async function readLock(lk) {
 function passOk(p) {
   return typeof p === "string" && p.length >= 10 && p.length <= 64 && /[A-Za-zА-Яа-яЁё]/.test(p) && /\d/.test(p);
 }
+/* ник: 3–20 символов, начинается с буквы, буквы и _ в середине, цифры только в конце */
+function nickOk(n) {
+  return typeof n === "string" && n.length >= 3 && n.length <= 20 && /^[a-z][a-z_]*[0-9]*$/.test(n);
+}
 async function forward(body) {
   const fr = await fetch(SB.replace(/\/$/, "") + "/functions/v1/swift-worker", {
     method: "POST",
@@ -47,6 +51,7 @@ Deno.serve(async (req) => {
   if (!nick || !body.pass) return json({ ok: false, error: "bad_input" }, 400);
 
   if (body.action === "register") {
+    if (!nickOk(nick)) return json({ ok: false, error: "bad_nick" }, 400);
     if (!passOk(String(body.pass))) return json({ ok: false, error: "bad_pass" }, 400);
     const r = await forward(body);
     return json(r.data, r.status);
