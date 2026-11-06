@@ -27,9 +27,9 @@ async function readLock(lk) {
 function passOk(p) {
   return typeof p === "string" && p.length >= 10 && p.length <= 64 && /[A-Za-zА-Яа-яЁё]/.test(p) && /\d/.test(p);
 }
-/* ник: 3–20 символов, начинается с буквы, буквы и _ в середине, цифры только в конце */
+/* ник: 3–20 символов, начинается с буквы; _ только между буквами (не в начале, не в конце, не подряд); цифры только в конце */
 function nickOk(n) {
-  return typeof n === "string" && n.length >= 3 && n.length <= 20 && /^[a-z][a-z_]*[0-9]*$/.test(n);
+  return typeof n === "string" && n.length >= 3 && n.length <= 20 && /^[a-z](?:_?[a-z])*[0-9]*$/.test(n);
 }
 async function forward(body) {
   const fr = await fetch(SB.replace(/\/$/, "") + "/functions/v1/swift-worker", {
