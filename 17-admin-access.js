@@ -65,7 +65,7 @@ function logOp(action, details, cat, data){
   try{ actMirrorLog(e); }catch(_){}
   /* запись в общий журнал идёт на сервер: автор и роль ставятся там */
   if(ADMIN_CRED){
-    try{ adminFetch(ADMIN_DATA_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ action:'log_add', admin_nick: ADMIN_CRED.nick, admin_pass: ADMIN_CRED.pass, entry: {action: action, details: details||'', cat: cat||'', data: data||null} }) }).catch(function(){}); }catch(e2){}
+    /* запись в журнал делает сервер (admin-gate), клиент больше не пишет */
   }
 }
 function listingSnap(l){

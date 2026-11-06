@@ -53,6 +53,16 @@ Deno.serve(async (req) => {
   if (!nick) return json({ ok: false, error: "bad_input" }, 400);
   const action = String(body.action || "").slice(0, 60);
 
+  /* блокировка подбора пароля админа: три неверных пароля за 10 минут (счётчик adm:<ник> в базе) */
+  const lk = "adm:" + nick;
+  const lr = await rest("admin_bot_state?select=v&k=eq." + encodeURIComponent(lk));
+  const ld = lr.ok ? await lr.json() : [];
+  const lock = (ld[0] && ld[0].v) || { n: 0, until: 0 };
+  if (lock.until && lock.until > Date.now()) {
+    await audit({ nick: nick, target: target, action: action, ok: false, status: 429, ip: "", ua: "" });
+    return json({ ok: false, error: "locked", minutes: Math.ceil((lock.until - Date.now()) / 60000) }, 429);
+  }
+
   const forward = Object.assign({}, body);
   delete forward.target;
   const fr = await fetch(SB.replace(/\/$/, "") + "/functions/v1/" + target, {
@@ -68,6 +78,21 @@ Deno.serve(async (req) => {
   const ip = (req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "").split(",")[0].trim().slice(0, 64);
   const ua = (req.headers.get("user-agent") || "").slice(0, 200);
   await audit({ nick: nick, target: target, action: action, ok: ok, status: fr.status, ip: ip, ua: ua });
+
+  /* счётчик неверных паролей: неверный пароль +1, верный сбрасывает счётчик */
+  if (data && data.error === "bad_admin") {
+    await rest("admin_bot_state?on_conflict=k", {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify([{ k: lk, v: { n: (lock.n || 0) + 1, until: 0 }, updated_at: new Date().toISOString() }]),
+    });
+  } else if (ok) {
+    await rest("admin_bot_state?on_conflict=k", {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify([{ k: lk, v: { n: 0, until: 0 }, updated_at: new Date().toISOString() }]),
+    });
+  }
 
   /* в видимый журнал попадают только подтверждённые вызовы: иначе любой может подписать запись чужим ником */
   if (!ok) return new Response(text, { status: fr.status, headers: { ...CORS, "Content-Type": "application/json; charset=utf-8" } });
