@@ -25,7 +25,7 @@ async function readLock(lk) {
 }
 /* правила пароля игрока: 10–64 символа, только латинские буквы и цифры, обязательно и буквы, и цифры */
 function passOk(p) {
-  return typeof p === "string" && p.length >= 10 && p.length <= 64 && /^[A-Za-z0-9]+$/.test(p) && /[A-Za-z]/.test(p) && /[0-9]/.test(p);
+  return typeof p === "string" && p.length >= 10 && p.length <= 63 && /^[A-Za-z0-9]+$/.test(p) && /[A-Za-z]/.test(p) && /[0-9]/.test(p);
 }
 /* ник: 3–20 символов, начинается с буквы; _ только между буквами (не в начале, не в конце, не подряд); цифры только в конце */
 function nickOk(n) {
@@ -54,6 +54,8 @@ Deno.serve(async (req) => {
     if (!nickOk(nick)) return json({ ok: false, error: "bad_nick" }, 400);
     if (!passOk(String(body.pass))) return json({ ok: false, error: "bad_pass" }, 400);
     const r = await forward(body);
+    /* ник занят не раскрываем: тот же ответ, что на неверный ник */
+    if (r.data && r.data.error === "taken") return json({ ok: false, error: "bad_nick" }, 400);
     return json(r.data, r.status);
   }
   if (body.action !== "login") return json({ ok: false, error: "unknown_action" }, 400);
@@ -79,6 +81,8 @@ Deno.serve(async (req) => {
   }
 
   const r = await forward(body);
+  /* нет такого аккаунта — тот же ответ, что на неверный пароль (не раскрываем, что ник существует) */
+  if (r.data && r.data.error === "no_account") return json({ ok: false, error: "bad_pass" }, 401);
 
   /* сброс счётчика только после верного пароля */
   if (r.data && r.data.ok) {
