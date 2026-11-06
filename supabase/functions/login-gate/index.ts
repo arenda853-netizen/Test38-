@@ -23,9 +23,9 @@ async function readLock(lk) {
   const d = r.ok ? await r.json() : [];
   return (d[0] && d[0].v) || { n: 0, until: 0 };
 }
-/* правила пароля игрока: 10–64 символа, обязательно буквы и цифры */
+/* правила пароля игрока: 10–64 символа, только латинские буквы и цифры, обязательно и буквы, и цифры */
 function passOk(p) {
-  return typeof p === "string" && p.length >= 10 && p.length <= 64 && /[A-Za-zА-Яа-яЁё]/.test(p) && /\d/.test(p);
+  return typeof p === "string" && p.length >= 10 && p.length <= 64 && /^[A-Za-z0-9]+$/.test(p) && /[A-Za-z]/.test(p) && /[0-9]/.test(p);
 }
 /* ник: 3–20 символов, начинается с буквы; _ только между буквами (не в начале, не в конце, не подряд); цифры только в конце */
 function nickOk(n) {

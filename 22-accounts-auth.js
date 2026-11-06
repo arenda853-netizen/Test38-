@@ -146,7 +146,8 @@ function authLockTick(){
 function authPassError(pass){
   if(pass.length < 10) return 'Пароль должен быть не короче 10 символов.';
   if(pass.length > 64) return 'Пароль слишком длинный (максимум 64 символа).';
-  if(!/[A-Za-zА-Яа-яЁё]/.test(pass) || !/\d/.test(pass)) return 'Пароль должен содержать буквы и цифры: только буквы или только цифры не подойдут.';
+  if(!/^[A-Za-z0-9]+$/.test(pass)) return 'Пароль: только английские буквы (A–Z) и цифры, без русских букв и знаков.';
+  if(!/[A-Za-z]/.test(pass) || !/[0-9]/.test(pass)) return 'Пароль должен содержать и английские буквы, и цифры.';
   return '';
 }
 function authNickError(nick){
@@ -251,7 +252,7 @@ window.submitLocalRegister = async function(){
     const d = await authCall('register', nick, pass);
     if(d.error === 'taken'){ openAuthModal('register', 'Ник «' + authEsc(nick) + '» уже занят. Придумайте другой. Если это ваш аккаунт, нажмите «Уже есть аккаунт? Войти».', nick); return; }
     if(d.error === 'bad_nick'){ openAuthModal('register', 'Ник не подходит: только английские буквы, цифры и _ (3–20 символов).', nick); return; }
-    if(d.error === 'bad_pass'){ openAuthModal('register', 'Пароль: от 10 до 64 символов, обязательно буквы и цифры.', nick); return; }
+    if(d.error === 'bad_pass'){ openAuthModal('register', 'Пароль: от 10 до 64 символов, только английские буквы и цифры, обязательно и буквы, и цифры.', nick); return; }
     if(!d.ok){ openAuthModal('register', 'Нет связи с сервером [код ' + (d.status || '—') + ']. Проверьте интернет и попробуйте ещё раз.', nick); return; }
     authSaveToken(d.token);
     try{ if(window.__SYNC && window.__SYNC.fetchAccount) await window.__SYNC.fetchAccount(authKey(nick)); }catch(e){}
