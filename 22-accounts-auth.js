@@ -142,6 +142,13 @@ function authLockTick(){
   }, 1000);
 }
 /* возвращает текст ошибки или '' если ник годится для РЕГИСТРАЦИИ */
+/* правила пароля игрока (дублируются на сервере в login-gate): 10–64 символа, буквы и цифры */
+function authPassError(pass){
+  if(pass.length < 10) return 'Пароль должен быть не короче 10 символов.';
+  if(pass.length > 64) return 'Пароль слишком длинный (максимум 64 символа).';
+  if(!/[A-Za-zА-Яа-яЁё]/.test(pass) || !/\d/.test(pass)) return 'Пароль должен содержать буквы и цифры: только буквы или только цифры не подойдут.';
+  return '';
+}
 function authNickError(nick){
   if(!nick) return 'Введите ник.';
   if(/[А-Яа-яЁё]/.test(nick)) return 'В нике нельзя использовать русские буквы. Только английские (A–Z), цифры и _.';
@@ -205,7 +212,7 @@ window.adminFetch = function(url, init){
 async function authCall(action, nick, pass){
   let r;
   try{
-    r = await fetch(action === 'login' ? LOGIN_GATE_URL : AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
+    r = await fetch((action === 'login' || action === 'register') ? LOGIN_GATE_URL : AUTH_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY },
       body: JSON.stringify({ action: action, nick: nick, pass: pass, device: deviceLabel() }) });
   }catch(e){ return { ok:false, error:'net', status:0 }; }
   let d = {}; try{ d = await r.json(); }catch(e){}
@@ -235,14 +242,15 @@ window.submitLocalRegister = async function(){
   const nerr = authNickError(nick);
   if(nerr){ openAuthModal('register', nerr, nick); return; }
   if(!pass){ openAuthModal('register', 'Введите пароль.', nick); return; }
-  if(pass.length < 4){ openAuthModal('register', 'Пароль должен быть не короче 4 символов.', nick); return; }
+  const perr = authPassError(pass);
+  if(perr){ openAuthModal('register', perr, nick); return; }
   if(pass.length > 64){ openAuthModal('register', 'Пароль слишком длинный (максимум 64 символа).', nick); return; }
   authSetBusy(true);
   try{
     const d = await authCall('register', nick, pass);
     if(d.error === 'taken'){ openAuthModal('register', 'Ник «' + authEsc(nick) + '» уже занят. Придумайте другой. Если это ваш аккаунт, нажмите «Уже есть аккаунт? Войти».', nick); return; }
     if(d.error === 'bad_nick'){ openAuthModal('register', 'Ник не подходит: только английские буквы, цифры и _ (3–20 символов).', nick); return; }
-    if(d.error === 'bad_pass'){ openAuthModal('register', 'Пароль не подходит (от 4 до 64 символов).', nick); return; }
+    if(d.error === 'bad_pass'){ openAuthModal('register', 'Пароль: от 10 до 64 символов, обязательно буквы и цифры.', nick); return; }
     if(!d.ok){ openAuthModal('register', 'Нет связи с сервером [код ' + (d.status || '—') + ']. Проверьте интернет и попробуйте ещё раз.', nick); return; }
     authSaveToken(d.token);
     try{ if(window.__SYNC && window.__SYNC.fetchAccount) await window.__SYNC.fetchAccount(authKey(nick)); }catch(e){}

@@ -1,8 +1,7 @@
 // @ts-nocheck
-/* Резерв попытки входа ДО проверки пароля. Каждый запрос сначала атомарно записывает +1 к неудачам аккаунта
-   (триггер guard_attempt_locks в базе держит счётчик монотонным), и только потом пароль проверяет swift-worker.
-   Параллельные запросы с многих устройств не могут проверить пароль сверх лимита: лишние получают отказ.
-   Успешный вход сбрасывает счётчик. Блокировка привязана к нику, а не к устройству. */
+/* Вход и регистрация игроков. Вход: резерв попытки ДО проверки пароля (счётчик gate:<ник> в базе).
+   Регистрация: пароль не короче 10 символов, обязательно буквы и цифры; иначе отказ до создания аккаунта.
+   Пароль проверяет swift-worker. Блокировка привязана к нику, а не к устройству. */
 const SB = Deno.env.get("SUPABASE_URL");
 const KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const CORS = {
@@ -24,18 +23,38 @@ async function readLock(lk) {
   const d = r.ok ? await r.json() : [];
   return (d[0] && d[0].v) || { n: 0, until: 0 };
 }
+/* правила пароля игрока: 10–64 символа, обязательно буквы и цифры */
+function passOk(p) {
+  return typeof p === "string" && p.length >= 10 && p.length <= 64 && /[A-Za-zА-Яа-яЁё]/.test(p) && /\d/.test(p);
+}
+async function forward(body) {
+  const fr = await fetch(SB.replace(/\/$/, "") + "/functions/v1/swift-worker", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: KEY },
+    body: JSON.stringify(body),
+  });
+  let data = {};
+  try { data = await fr.json(); } catch (e) { data = { ok: false, error: "server" }; }
+  return { data, status: fr.status };
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
   if (req.method !== "POST") return json({ ok: false, error: "method" }, 405);
   let body;
   try { body = await req.json(); } catch (e) { return json({ ok: false, error: "bad_json" }, 400); }
-  if (body.action !== "login") return json({ ok: false, error: "unknown_action" }, 400);
   const nick = String(body.nick || "").trim().toLowerCase();
   if (!nick || !body.pass) return json({ ok: false, error: "bad_input" }, 400);
+
+  if (body.action === "register") {
+    if (!passOk(String(body.pass))) return json({ ok: false, error: "bad_pass" }, 400);
+    const r = await forward(body);
+    return json(r.data, r.status);
+  }
+  if (body.action !== "login") return json({ ok: false, error: "unknown_action" }, 400);
+
   const lk = "gate:" + nick;
   const now = Date.now();
-
   const cur = await readLock(lk);
   if (cur.until && cur.until > now) {
     return json({ ok: false, error: "locked", minutes: Math.ceil((cur.until - now) / 60000) }, 429);
@@ -47,29 +66,22 @@ Deno.serve(async (req) => {
     headers: { Prefer: "resolution=merge-duplicates,return=representation" },
     body: JSON.stringify([{ k: lk, v: { n: (cur.n || 0) + 1, until: 0 }, updated_at: new Date().toISOString() }]),
   });
-  const rows = w.ok ? await w.json() : [];
-  const after = (rows[0] && rows[0].v) || {};
   if (!w.ok) return json({ ok: false, error: "server" }, 500);
+  const rows = await w.json();
+  const after = (rows[0] && rows[0].v) || {};
   if (after.until && after.until > Date.now()) {
     return json({ ok: false, error: "locked", minutes: Math.ceil((after.until - Date.now()) / 60000) }, 429);
   }
 
-  /* пароль проверяет swift-worker (его собственный счётчик тоже работает) */
-  const fr = await fetch(SB.replace(/\/$/, "") + "/functions/v1/swift-worker", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: KEY },
-    body: JSON.stringify(body),
-  });
-  let data = {};
-  try { data = await fr.json(); } catch (e) { data = { ok: false, error: "server" }; }
+  const r = await forward(body);
 
   /* сброс счётчика только после верного пароля */
-  if (data && data.ok) {
+  if (r.data && r.data.ok) {
     await rest("admin_bot_state?on_conflict=k", {
       method: "POST",
       headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
       body: JSON.stringify([{ k: lk, v: { n: 0, until: 0 }, updated_at: new Date().toISOString() }]),
     });
   }
-  return json(data, fr.status);
+  return json(r.data, r.status);
 });
