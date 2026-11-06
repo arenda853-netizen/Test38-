@@ -83,7 +83,7 @@ function sellerById(id){
   return l0 ? sellerOf(l0) : null;
 }
 function sellerBadges(s){
-  if(s.status==='banned') return `<span class="badge" style="background:var(--danger-soft);color:var(--danger);">${icon('close',11)} Забанен</span>`;
+  if(s.status==='banned') return `<span class="badge" style="background:var(--danger-soft);color:var(--danger);">${icon('close',11)} Заблокирован</span>`;
   if(s.status==='frozen') return `<span class="badge" style="background:var(--warning-soft);color:var(--warning);">${icon('lock',11)} Ограничен</span>`;
   return `${s.verified?verifiedMark(14):''}${s.online?`<span style="color:#33e39a;font-size:12px;line-height:1;" title="в сети">●</span>`:''}`;
 }
