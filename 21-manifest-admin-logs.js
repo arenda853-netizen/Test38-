@@ -22,7 +22,7 @@ function pageAdminFinance(){
   <div class="page">
     <div class="card" style="padding:18px;margin-bottom:12px;text-align:center;">
       <div class="faint" style="font-size:11px;">Баланс</div>
-      <div class="h1" style="font-size:26px;color:var(--accent-2);margin-top:4px;">${fmtPrice(state.me.balance)}</div>
+      <div class="h1" style="font-size:26px;color:var(--accent-2);margin-top:4px;">${fmtBal(state.me.balance)}</div>
     </div>
     <div class="row gap8">
       <div class="card" style="flex:1;padding:14px;text-align:center;"><div class="h1" style="font-size:17px;color:var(--warning);">${fmtPrice(frozenSum)}</div><div class="faint" style="font-size:10.5px;margin-top:2px;">Заморожено в спорах</div></div>

@@ -8,6 +8,15 @@ function colorFromString(str){
   return palette[Math.abs(h) % palette.length];
 }
 function fmtPrice(n){ return (n||0).toLocaleString('ru-RU') + ' ₽'; }
+/* баланс: большие суммы короче, чтобы не ломать вёрстку. 1 024 000 → «1.02 млн ₽». Меньше 1 млн — как fmtPrice. Округление вниз, без лишних нулей. */
+function fmtBal(n){
+  n = Number(n)||0;
+  const a = Math.abs(n), sign = n<0 ? '-' : '';
+  const cut = v => (Math.floor(v*100)/100).toFixed(2).replace(/\.?0+$/,'');
+  if(a >= 1e9) return sign + cut(a/1e9) + ' млрд ₽';
+  if(a >= 1e6) return sign + cut(a/1e6) + ' млн ₽';
+  return fmtPrice(n);
+}
 function timeAgo(ts){
   const s = Math.floor((Date.now()-ts)/1000);
   if(s<60) return 'только что';

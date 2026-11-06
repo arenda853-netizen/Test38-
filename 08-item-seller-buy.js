@@ -170,7 +170,7 @@ function payMethodOptionHtml(method, l){
   if(method === 'internal'){
     note = (state.me.balance < l.price)
       ? `<span style="color:var(--danger);font-size:11px;font-weight:700;">Недостаточно средств</span>`
-      : `<span class="faint" style="font-size:11px;">Баланс: ${fmtPrice(state.me.balance)}</span>`;
+      : `<span class="faint" style="font-size:11px;">Баланс: ${fmtBal(state.me.balance)}</span>`;
   } else {
     note = `<span class="faint" style="font-size:11px;">Внешняя оплата</span>`;
   }

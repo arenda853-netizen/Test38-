@@ -111,7 +111,7 @@ function pageProfile(){
     </div>
     <div class="row gap12" style="margin-bottom:12px;">
       <div class="card" style="flex:1;padding:14px;text-align:center;">
-        <div class="h1" style="font-size:19px;color:var(--accent-2);">${fmtPrice(me.balance)}</div>
+        <div class="h1" style="font-size:19px;color:var(--accent-2);">${fmtBal(me.balance)}</div>
         <div class="faint" style="font-size:11px;margin-top:2px;">Баланс</div>
       </div>
       <div class="card" style="flex:1;padding:14px;text-align:center;">
@@ -190,7 +190,7 @@ function sellerStatsCard(){
 
 function withdrawSheet(){
   return `<div class="h2" style="margin-bottom:4px;">Вывод средств</div>
-  <div class="faint" style="font-size:11.5px;margin-bottom:16px;">Доступно к выводу: ${fmtPrice(state.me.balance)}</div>
+  <div class="faint" style="font-size:11.5px;margin-bottom:16px;">Доступно к выводу: ${fmtBal(state.me.balance)}</div>
   <input class="input" type="number" min="1" id="withdrawAmount" placeholder="Сумма вывода, ₽" style="margin-bottom:12px;">
   <select class="select" id="withdrawMethod" style="margin-bottom:16px;">
     <option>На карту (СБП)</option>
@@ -422,7 +422,7 @@ function promoteSheet(listingId){
   </div>
   <div class="row between" style="padding:10px 2px;margin-bottom:16px;">
     <span class="faint" style="font-size:12px;">Ваш баланс</span>
-    <span class="faint" style="font-size:12px;">${fmtPrice(state.me.balance)}</span>
+    <span class="faint" style="font-size:12px;">${fmtBal(state.me.balance)}</span>
   </div>
   <div class="row gap8">
     <button class="btn btn-ghost" style="flex:1;" onclick="closeModal()">Отмена</button>
