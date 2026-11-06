@@ -31,6 +31,20 @@ function passOk(p) {
 function nickOk(n) {
   return typeof n === "string" && n.length >= 3 && n.length <= 20 && /^[a-z](?:_?[a-z])*[0-9]*$/.test(n);
 }
+/* IP, с которого делали вход: первый адрес из x-forwarded-for */
+function ipOf(req) {
+  const f = req.headers.get("x-forwarded-for") || "";
+  return ((f.split(",")[0] || req.headers.get("cf-connecting-ip") || "").trim().slice(0, 64)) || "unknown";
+}
+/* если аккаунт заблокирован по неверным паролям, IP, с которого это случилось, блокируется на 20 минут */
+const IP_LOCK_MS = 20 * 60000;
+async function setIpLock(ilk) {
+  await rest("admin_bot_state?on_conflict=k", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify([{ k: ilk, v: { n: 0, until: Date.now() + IP_LOCK_MS }, updated_at: new Date().toISOString() }]),
+  });
+}
 async function forward(body) {
   const fr = await fetch(SB.replace(/\/$/, "") + "/functions/v1/swift-worker", {
     method: "POST",
@@ -60,6 +74,12 @@ Deno.serve(async (req) => {
   }
   if (body.action !== "login") return json({ ok: false, error: "unknown_action" }, 400);
 
+  const ilk = "iplk:" + ipOf(req);
+  const ic = await readLock(ilk);
+  if (ic.until && ic.until > Date.now()) {
+    return json({ ok: false, error: "locked", minutes: Math.ceil((ic.until - Date.now()) / 60000) }, 429);
+  }
+
   const lk = "gate:" + nick;
   const now = Date.now();
   const cur = await readLock(lk);
@@ -77,6 +97,7 @@ Deno.serve(async (req) => {
   const rows = await w.json();
   const after = (rows[0] && rows[0].v) || {};
   if (after.until && after.until > Date.now()) {
+    await setIpLock(ilk);
     return json({ ok: false, error: "locked", minutes: Math.ceil((after.until - Date.now()) / 60000) }, 429);
   }
 
