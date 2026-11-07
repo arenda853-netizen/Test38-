@@ -193,7 +193,20 @@ function dealConfirmSheet(id){
   <div class="row gap8">
     <button class="btn btn-ghost" style="flex:1;" onclick="closeModal()">Отмена</button>
     <button class="btn btn-accent2" style="flex:1;" onclick="closeModal(); ${fn}('${d.id}')">Да, подтверждаю</button>
-  </div>`;
+  </div>
+  ${d.status==='paid' ? `<button class="btn btn-danger btn-block" style="margin-top:10px;" onclick="closeModal(); openModal(disputeSheet('${d.id}'))">${icon('lock',15)} Открыть спор</button>` : ''}`;
+}
+/* спор при подтверждении: покупатель и продавец видят «Открыть спор» в окне подтверждения.
+   Покупатель может открыть спор без подтверждения, если продавец не отвечает 24 часа на его последнее сообщение. */
+function buyerSellerSilent(d){
+  if(!d || isSellerOf(d)) return false;
+  const msgs = d.messages || [];
+  for(let i = msgs.length - 1; i >= 0; i--){
+    const m = msgs[i];
+    if(m.from === 'them') return false;
+    if(m.from === 'me') return Date.now() - (m.ts || 0) >= 24*3600*1000;
+  }
+  return false;
 }
 function dealActionsSheet(id){
   const d = state.deals.find(x=>x.id===id);
@@ -211,7 +224,7 @@ function dealActionsSheet(id){
         return `<div class="btn ${done?'btn-ghost':'btn-accent2'} btn-block" ${done?'style="opacity:.6;pointer-events:none;"':''} onclick="closeModal(); openModal(dealConfirmSheet('${d.id}'))">${icon('check',15)} ${label}</div>`;
       })() : ''}
       ${dealAutoShort(d) ? `<div class="faint" style="font-size:12.5px;padding:8px 4px;">${dealAutoShort(d)}</div>` : ''}
-      ${(d.status==='paid' || inDisputeWindow(d)) && !ADMIN ? `<div class="btn btn-danger btn-block" onclick="closeModal(); openModal(disputeSheet('${d.id}'))">${icon('lock',15)} Открыть спор</div>` : ''}
+      ${(inDisputeWindow(d) || (d.status==='paid' && buyerSellerSilent(d))) && !ADMIN ? `<div class="btn btn-danger btn-block" onclick="closeModal(); openModal(disputeSheet('${d.id}'))">${icon('lock',15)} Открыть спор</div>` : ''}
       <div class="btn btn-ghost btn-block" onclick="closeModal(); navigate('/chat/support')">${icon('support',15)} Написать в поддержку</div>
     </div>`;
 }
