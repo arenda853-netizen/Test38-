@@ -18,7 +18,6 @@
   function lsGet(k){ try{ return localStorage.getItem(k) || ''; }catch(e){ return ''; } }
   function lsSet(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
   function accKey(){ return (typeof state !== 'undefined' && state && state.accKey) || 'guest'; }
-  function learnKey(){ return 'dp_learn_' + accKey(); }
   function agreed(){ return lsGet(AGREE_KEY) === AGREE_VER && lsGet('dp_pd_consent') === 'v1'; }
 
   ICONS.info = '<circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/>';
@@ -415,103 +414,7 @@
   W.cookieAccept = function(){ lsSet(COOKIE_KEY, '1'); const el = document.getElementById('cookieBar'); if(el) el.remove(); };
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', cookieBanner); else cookieBanner();
 
-  /* ---------- обучение: правила и проверка «можно / нельзя» ---------- */
-  const LEARN = [
-    { t: 'Указать в описании честный ранг и количество скинов, как в игре', ok: true,  why: 'Честные характеристики — основа доверия покупателя.' },
-    { t: 'Написать в названии свой Telegram, чтобы договориться напрямую', ok: false, why: 'Контакты в объявлении запрещены: общение и оплата только внутри площадки.' },
-    { t: 'Передать логин и пароль через раздел «Данные аккаунта» после покупки', ok: true, why: 'Эти данные покупатель увидит только после оплаты.' },
-    { t: 'Попросить оплату переводом на карту, минуя сделку', ok: false, why: 'Оплата в обход сделки не защищена, и такие сделки поддержка не разбирает.' },
-    { t: 'Выставить аккаунт, который вам не принадлежит', ok: false, why: 'Продавать можно только то, что принадлежит вам.' },
-    { t: 'Честно написать, что в аккаунте были баны или сменилась привязка почты', ok: true, why: 'Честное описание состояния снижает споры.' }
-  ];
-  W.__learnAns = {};
-  W.__learnMode = 'info';
-  W.__learnPendingCat = null;
-
-  function learnPassed(){
-    return LEARN.every(function(it, i){ const a = W.__learnAns[i]; return !!a && a.correct; });
-  }
-  function quizHtml(){
-    return LEARN.map(function(it, i){
-      const a = W.__learnAns[i];
-      const sel = (v) => (a && a.choice === v) ? 'btn-primary' : 'btn-ghost';
-      const fb = a ? `<div style="font-size:12px;line-height:1.45;margin-top:6px;color:${a.correct ? 'var(--accent-2)' : 'var(--danger)'};">${a.correct ? 'Верно. ' : 'Неверно. '}${it.why}</div>` : '';
-      return `<div style="padding:11px 0;border-bottom:1px solid var(--border-soft);">
-        <div style="font-size:13.5px;font-weight:600;line-height:1.4;margin-bottom:8px;">${it.t}</div>
-        <div class="row gap8">
-          <button class="btn btn-sm ${sel(true)}" style="flex:1;" onclick="learnAnswer(${i}, true)">Можно</button>
-          <button class="btn btn-sm ${sel(false)}" style="flex:1;" onclick="learnAnswer(${i}, false)">Нельзя</button>
-        </div>${fb}</div>`;
-    }).join('');
-  }
-  function learnFooterHtml(){
-    if(W.__learnMode === 'gate'){
-      const ok = learnPassed();
-      return `<div id="learnStatus" class="faint" style="font-size:12px;margin:12px 0 8px;">${ok ? 'Проверка пройдена.' : 'Отметьте все примеры верно, чтобы продолжить.'}</div>
-        <button id="learnGo" class="btn btn-primary btn-block" ${ok ? '' : 'disabled'} onclick="learnContinue()">Продолжить к анкете</button>`;
-    }
-    return `<button class="btn btn-ghost btn-block" style="margin-top:12px;" onclick="learnBack()">Назад</button>`;
-  }
-  W.learnSheet = function(mode){
-    W.__learnMode = mode;
-    const rulesBox = (title, color, items) => `<div style="border:1px solid ${color};border-radius:14px;padding:12px 14px;margin-bottom:10px;">
-      <div style="font-weight:800;font-size:13px;color:${color};margin-bottom:6px;">${title}</div>
-      ${items.map(x => `<div style="font-size:13px;line-height:1.5;margin-bottom:4px;">${x}</div>`).join('')}</div>`;
-    return `<div style="padding:4px 2px;">
-      <div class="h2" style="margin-bottom:4px;">${mode === 'gate' ? 'Правила продажи' : 'Обучение и правила'}</div>
-      <div class="muted" style="font-size:12.5px;line-height:1.5;margin-bottom:12px;">${mode === 'gate'
-        ? 'Перед первым объявлением прочитайте правила и отметьте, что можно, а что нельзя.'
-        : 'Здесь можно повторить проверку и открыть правила в любой момент.'}</div>
-      ${rulesBox('Правильно', 'var(--accent-2)', [
-        '• Честные характеристики: ранг, уровень, скины — как в игре.',
-        '• Состояние аккаунта, включая баны и привязки.',
-        '• Данные для входа — только в разделе «Данные аккаунта» (покупатель увидит их после оплаты).',
-        '• Общение и подтверждение сделки внутри площадки.'])}
-      ${rulesBox('Нельзя', 'var(--danger)', [
-        '• Оплата или общение вне площадки, в обход сделки.',
-        '• Контакты, ссылки и игровые ID в названии и описании.',
-        '• Товар, которого нет, или чужой аккаунт.',
-        '• Характеристики, которых на самом деле нет.'])}
-      <div class="section-title" style="margin:14px 0 4px;">Проверка: что можно, а что нельзя</div>
-      <div id="learnQuiz">${quizHtml()}</div>
-      <div id="learnFoot">${learnFooterHtml()}</div>
-    </div>`;
-  };
-  function learnRerender(){
-    const q = document.getElementById('learnQuiz'); if(q) q.innerHTML = quizHtml();
-    const f = document.getElementById('learnFoot'); if(f) f.innerHTML = learnFooterHtml();
-  }
-  W.learnAnswer = function(i, choice){
-    W.__learnAns[i] = { choice: choice, correct: choice === LEARN[i].ok };
-    learnRerender();
-  };
-  W.learnContinue = function(){
-    if(!learnPassed()) return;
-    lsSet(learnKey(), '1');
-    closeModal();
-    const cat = W.__learnPendingCat; W.__learnPendingCat = null;
-    if(cat && typeof W.__origSellPickCat === 'function') W.__origSellPickCat(cat);
-  };
-  W.learnBack = function(){ openModal(settingsSheet()); };
-  W.openLearnInfo = function(){
-    W.__learnAns = {};
-    openModal(W.learnSheet('info'));
-  };
-
-  /* перед выбором категории (шаг 3 — анкета с характеристиками) — проверка правил, если ещё не пройдена */
-  (function(){
-    const _orig = W.sellPickCat;
-    if(typeof _orig !== 'function') return;
-    W.__origSellPickCat = _orig;
-    W.sellPickCat = function(c){
-      if(lsGet(learnKey()) === '1') return _orig.apply(this, arguments);
-      W.__learnPendingCat = c;
-      W.__learnAns = {};
-      openModal(W.learnSheet('gate'));
-    };
-  })();
-
-  /* кнопки в настройках: обучение и документы */
+  /* кнопка в настройках: документы и соглашение */
   (function(){
     const _settings = W.settingsSheet;
     if(typeof _settings !== 'function') return;
@@ -520,7 +423,6 @@
       const marker = '<button class="btn btn-danger btn-block" onclick="logoutAccount()">';
       if(html.indexOf(marker) < 0) return html;
       const extra = '<div style="margin-bottom:14px;">'
-        + profileRow('info', 'Обучение и правила', '', "openLearnInfo()")
         + profileRow('note', 'Документы и соглашение', '', "openDocsList('settings')")
         + '</div>';
       return html.replace(marker, extra + marker);
