@@ -64,8 +64,8 @@ function devUploadAvatar(e){
 function devNeedSecret(){
   openModal(`<div class="h2" style="margin-bottom:6px;">Подтвердите пароль админа</div>
   <div class="muted" style="font-size:13px;margin-bottom:12px;line-height:1.5;">Без пароля изменение игры сохранится только на этом устройстве и не будет видно другим.</div>
-  <input class="input" id="devSecNick" placeholder="Ник админа" autocomplete="username" style="margin-bottom:8px;">
-  <input class="input" id="devSecPw" type="password" placeholder="Пароль" autocomplete="current-password" style="margin-bottom:12px;">
+  <input class="input" id="devSecNick" value="${(state && state.authed && state.accKey) ? state.accKey : ''}" placeholder="Ник аккаунта" autocomplete="username" style="margin-bottom:8px;">
+  <input class="input" id="devSecPw" type="password" placeholder="Секретное слово" autocomplete="current-password" style="margin-bottom:12px;">
   <div class="row gap8"><button class="btn btn-ghost" style="flex:1;" onclick="closeModal()">Отмена</button>
   <button class="btn btn-accent2" style="flex:1;" onclick="devCheckSecret()">Подтвердить</button></div>`);
 }
