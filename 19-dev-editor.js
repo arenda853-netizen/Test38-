@@ -59,8 +59,34 @@ function devUploadAvatar(e){
   const file = e.target.files[0]; if(!file || !devDraft) return;
   compressImage(file, 256, 0.82).then(url=>{ devDraft.img = url; onRoute(); }).catch(()=>toast('Не удалось обработать фото','error'));
 }
+/* каталог уходит на сервер только при активном входе админа с паролем (ADMIN_CRED);
+   после перезагрузки пароль нужно ввести заново, иначе правка не попадёт на другие устройства */
+function devNeedSecret(){
+  openModal(`<div class="h2" style="margin-bottom:6px;">Подтвердите пароль админа</div>
+  <div class="muted" style="font-size:13px;margin-bottom:12px;line-height:1.5;">Без пароля изменение игры сохранится только на этом устройстве и не будет видно другим.</div>
+  <input class="input" id="devSecNick" placeholder="Ник админа" autocomplete="username" style="margin-bottom:8px;">
+  <input class="input" id="devSecPw" type="password" placeholder="Пароль" autocomplete="current-password" style="margin-bottom:12px;">
+  <div class="row gap8"><button class="btn btn-ghost" style="flex:1;" onclick="closeModal()">Отмена</button>
+  <button class="btn btn-accent2" style="flex:1;" onclick="devCheckSecret()">Подтвердить</button></div>`);
+}
+async function devCheckSecret(){
+  const nick = (document.getElementById('devSecNick')||{}).value || '';
+  const pw = (document.getElementById('devSecPw')||{}).value || '';
+  const n = nick.trim().toLowerCase();
+  if(!n || !pw){ toast('Введите ник и пароль','error'); return; }
+  let res = null;
+  try{
+    const r = await fetch(SUPPORT_URL, { method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPABASE_PUBLISHABLE_KEY }, body: JSON.stringify({ action:'admin_check', admin_nick: n, admin_pass: pw }) });
+    res = await r.json();
+  }catch(e){ toast('Нет связи с сервером','error'); return; }
+  if(!res || !res.ok){ toast('Неверный ник или пароль','error'); return; }
+  ADMIN_CRED = { nick: n, pass: pw };
+  closeModal();
+  devSaveGame();
+}
 function devSaveGame(){
   if(!devAllowed() || !devDraft) return;
+  if(typeof ADMIN_CRED === 'undefined' || !ADMIN_CRED){ devNeedSecret(); return; }
   const name = devDraft.name.trim();
   if(name.length<2){ toast('Название — минимум 2 символа','error'); return; }
   if(!/^#[0-9a-fA-F]{6}$/.test(devDraft.color)){ toast('Выберите цвет','error'); return; }
